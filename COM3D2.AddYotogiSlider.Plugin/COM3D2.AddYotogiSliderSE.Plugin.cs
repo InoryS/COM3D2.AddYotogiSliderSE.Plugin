@@ -1,39 +1,42 @@
-﻿using System;
+﻿// コンパイル用コマンド
+// C:\Windows\Microsoft.NET\Framework\v3.5\csc /t:library /lib:.\Libs /r:UnityEngine.dll /r:UnityEngine.UI.dll /r:UnityInjector.dll /r:Assembly-CSharp.dll /r:Assembly-CSharp-firstpass.dll /r:ExIni.dll COM3D2.AddYotogiSliderSE.Plugin.cs
+
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.IO;
 using System.Reflection;
 using UnityEngine;
+using UnityInjector;
 using UnityInjector.Attributes;
 
 using UnityObsoleteGui;
 using PV = UnityObsoleteGui.PixelValuesCM3D2;
 using Yotogis;
 
-namespace COM3D2.AddYotogiSlider.Plugin
+namespace COM3D2.AddYotogiSliderSE.Plugin
 {
 
     [PluginFilter("COM3D2x64")]
     [PluginFilter("COM3D2VRx64")]
     [PluginFilter("COM3D2OHx64")]
     [PluginFilter("COM3D2OHVRx64")]
-    [PluginName(AddYotogiSlider.PluginName)]
-    [PluginVersion(AddYotogiSlider.Version)]
-    public class AddYotogiSlider : UnityInjector.PluginBase
+    [PluginName(AddYotogiSliderSE.PluginName)]
+    [PluginVersion(AddYotogiSliderSE.Version)]
+    public class AddYotogiSliderSE : PluginBase
     {
         #region Constants
 
-        public const string PluginName = "AddYotogiSlider";
-        public const string Version = "0.1.3.0";
-        private string _toggleKey = "f5";
+        public const string PluginName = "AddYotogiSliderSE";
+        public const string Version = "0.0.1.6";
 
         private readonly float TimePerInit = 1.00f;
         private readonly float TimePerUpdateSpeed = 0.33f;
         private readonly float WaitFirstInit = 5.00f;
         private readonly float WaitBoneLoad = 1.00f;
         private readonly string commandUnitName = "/UI Root/YotogiPlayPanel/CommandViewer/SkillViewer/MaskGroup/SkillGroup/CommandParent/CommandUnit";
-        private const string LogLabel = AddYotogiSlider.PluginName + " : ";
+        private const string LogLabel = AddYotogiSliderSE.PluginName + " : ";
 
         public enum TunLevel
         {
@@ -54,8 +57,12 @@ namespace COM3D2.AddYotogiSlider.Plugin
 
         #region Variables
 
+        private string _toggleKey = "f5";
+
         private int sceneLevel;
         private bool visible = false;
+        private bool bNormalYotogiScene = false;
+        private bool bCompatibilityYotogiScene = false;
         private bool bInitCompleted = false;
         private bool bFadeInWait = false;
         private bool bLoadBoneAnimetion = false;
@@ -66,7 +73,7 @@ namespace COM3D2.AddYotogiSlider.Plugin
         private bool kagScriptCallbacksOverride = false;
 
         private string[] sKey = { "WIN", "STATUS", "AHE", "BOTE", "FACEBLEND", "FACEANIME" };
-        private string[] sliderName = { "興奮", "精神", "理性", "感度", "速度" };
+        private string[] sliderName = { "興奮", "精神", "官能", "理性", "感度", "速度" };
         private string[] sliderNameAutoAHE = { "瞳Y" };
         private string[] sliderNameAutoTUN = { "乳首肥大度", "乳首萎え", "乳首勃起", "乳首たれ" };
         private string[] sliderNameAutoBOTE = { "腹" };
@@ -92,8 +99,8 @@ namespace COM3D2.AddYotogiSlider.Plugin
         //private float fLastSliderSensitivity = 0f;
         private float fPassedTimeOnCommand = -1f;
 
-        private string currentYotogiName;
-        private Skill.Data.Command.Data.Basic currentYotogiData;
+        private string lastSkillName;
+        private CommonCommandData currentCommandData;
 
         //AutoAHE
         private bool bOrgasmAvailable = false;                                                     //BodyShapeKeyチェック
@@ -181,10 +188,10 @@ namespace COM3D2.AddYotogiSlider.Plugin
         private bool bNyodoKupaAvailable = false;
         private bool bSujiAvailable = false;
         private bool bClitorisAvailable = false;
-        private int iLabiaKupaMin = 0;
-        private int iVaginaKupaMin = 0;
-        private int iNyodoKupaMin = 0;
-        private int iSujiMin = 0;
+        //private int iLabiaKupaMin = 0;
+        //private int iVaginaKupaMin = 0;
+        //private int iNyodoKupaMin = 0;
+        //private int iSujiMin = 0;
         private int iClitorisMin = 0;
 
         //FaceNames
@@ -221,14 +228,17 @@ namespace COM3D2.AddYotogiSlider.Plugin
 
         // ゲーム内部変数への参照
         private Maid maid;
-        private FieldInfo maidStatusInfo;
+        //private FieldInfo maidStatusInfo;
         private FieldInfo maidFoceKuchipakuSelfUpdateTime;
 
-        private YotogiManager yotogiManager;
         private YotogiPlayManager yotogiPlayManager;
-        private YotogiParamBasicBar yotogiParamBasicBar;
+        private YotogiOldPlayManager yotogiOldPlayManager;
+        private WfScreenChildren playManagerAsWfScreenChildren;
+
+        private YorogiParamBasicBarDelegator yotogiParamBasicBarDelegator;
         private GameObject goCommandUnit;
         private Action<Skill.Data.Command.Data> orgOnClickCommand;
+        private Action<Skill.Old.Data.Command.Data> orgOnClickCommandOld;
 
         private KagScript kagScript;
         private Func<KagTagSupport, bool> orgTagFace;
@@ -237,9 +247,202 @@ namespace COM3D2.AddYotogiSlider.Plugin
         private Animation anm_BO_body001;
         private Animation[] anm_BO_mbody;
 
+#if DEBUG
+        private WfScreenChildren.FadeStatus lastFadeStatus;
+#endif
+
         #endregion
 
         #region Nested classes
+
+        private static class CompatibilityModeStage
+        {
+            private static readonly string[] plugins = { "vp001", "legacy", "pp001", "pp002", "pp003", "vrcom", "karaoke001" };
+
+            private static readonly string[][] stages = new string[][] {
+                new string[] { "LockerRoom", "SMRoom2" },
+                new string[] { "Salon", "Salon_Day", "MyBedRoom", "MyBedRoom_Night", "PlayRoom", "Pool", "SMRoom", "Bathroom",
+                    "PlayRoom2", "Salon_Garden", "LargeBathRoom", "MaidRoom", "OiranRoom", "Penthouse", "Town", "Salon_Entrance",
+                    "Shitsumu", "Shitsumu_Night", "Shitsumu_ChairRot", "Shitsumu_ChairRot_Night", "DressRoom_NoMirror", "Syosai",
+                    "Syosai_Night", "Kitchen", "Kitchen_Night", "Bar" },
+                new string[] { "MyBedRoom_NightOff", "Toilet", "Train", "Oheya" },
+                new string[] { "ClassRoom_Play", "HoneymoonRoom", "ClassRoom", "OutletPark" },
+                new string[] { "Sea", "Sea_Night", "Yashiki_Day", "Yashiki", "Yashiki_pillow", "BigSight", "BigSight_Night",
+                    "PrivateRoom", "PrivateRoom_Night" },
+                new string[] { "Sea_VR", "Sea_VR_Night", "Villa", "Villa_Night", "Villa_BedRoom", "Villa_BedRoom_Night", "Villa_Farm",
+                    "Villa_Farm_Night", "Rotenburo", "Rotenburo_Night" },
+                new string[] { "KaraokeRoom" }
+            };
+
+            public static List<string> GetStageList()
+            {
+                List<string> stageList = new List<string>();
+                for (int i = 0; i < plugins.Length; i++)
+                {
+                    if (PluginData.IsEnabled(plugins[i])) stageList.AddRange(stages[i]);
+                }
+
+                return stageList;
+            }
+        }
+
+        // Skill.Data.Command.DataとSkill.Old.Data.Command.Dataを同じように扱うためのクラス
+        private class CommonCommandData
+        {
+            public class Basic
+            {
+                private static readonly Dictionary<YotogiOld.SkillCommandType, Yotogi.SkillCommandType> dicSkillCommandType =
+                    new Dictionary<YotogiOld.SkillCommandType, Yotogi.SkillCommandType>()
+                    {
+                        { YotogiOld.SkillCommandType.単発, Yotogi.SkillCommandType.単発 },
+                        { YotogiOld.SkillCommandType.単発_挿入, Yotogi.SkillCommandType.単発_挿入 },
+                        { YotogiOld.SkillCommandType.挿入, Yotogi.SkillCommandType.挿入 },
+                        { YotogiOld.SkillCommandType.止める, Yotogi.SkillCommandType.止める },
+                        { YotogiOld.SkillCommandType.絶頂, Yotogi.SkillCommandType.絶頂 },
+                        { YotogiOld.SkillCommandType.継続, Yotogi.SkillCommandType.継続 }
+                    };
+
+                public string name { get; private set; }
+                public string group_name { get; private set; }
+                public Yotogi.SkillCommandType command_type { get; private set; }
+
+                public Basic(Skill.Data.Command.Data.Basic basic)
+                {
+                    SetBasic(basic);
+                }
+
+                public Basic(Skill.Old.Data.Command.Data.Basic basic)
+                {
+                    SetBasic(basic);
+                }
+
+                public void SetBasic(Skill.Data.Command.Data.Basic basic)
+                {
+                    this.name = basic.name;
+                    this.group_name = basic.group_name;
+                    this.command_type = basic.command_type;
+                }
+
+                public void SetBasic(Skill.Old.Data.Command.Data.Basic basic)
+                {
+                    this.name = basic.name;
+                    this.group_name = basic.group_name;
+                    this.command_type = dicSkillCommandType[basic.command_type];
+                }
+            }
+
+            public class Status
+            {
+                public int frustration { get; private set; }
+
+                public Status(Skill.Data.Command.Data.Status status)
+                {
+                }
+
+                public Status(Skill.Old.Data.Command.Data.Status status)
+                {
+                    SetStatus(status);
+                }
+
+                public void SetStatus(Skill.Data.Command.Data.Status status)
+                {
+                }
+
+                public void SetStatus(Skill.Old.Data.Command.Data.Status status)
+                {
+                    this.frustration = status.frustration;
+                }
+            }
+
+            private readonly Basic basic_;
+            private readonly Status status_;
+
+            public Basic basic { get { return basic_; } }
+            public Status status { get { return status_; } }
+
+            public string skillName { get; private set; }
+
+            public CommonCommandData(Skill.Data.Command.Data data)
+            {
+                this.basic_ = new Basic(data.basic);
+                this.status_ = new Status(data.status);
+                this.skillName = data.basic.skill.name;
+            }
+
+            public CommonCommandData(Skill.Old.Data.Command.Data data)
+            {
+                this.basic_ = new Basic(data.basic);
+                this.status_ = new Status(data.status);
+
+                Skill.Old.Data skillOldData = Skill.Old.Get(data.basic.skill_id);
+                this.skillName = (skillOldData != null) ? skillOldData.name : string.Empty;
+            }
+
+            public void SetData(Skill.Data.Command.Data data)
+            {
+                this.basic.SetBasic(data.basic);
+                this.status.SetStatus(data.status);
+                this.skillName = data.basic.skill.name;
+            }
+
+            public void SetData(Skill.Old.Data.Command.Data data)
+            {
+                this.basic.SetBasic(data.basic);
+                this.status.SetStatus(data.status);
+
+                Skill.Old.Data skillOldData = Skill.Old.Get(data.basic.skill_id);
+                this.skillName = (skillOldData != null) ? skillOldData.name : string.Empty;
+            }
+        }
+
+        private class YorogiParamBasicBarDelegator
+        {
+            private YotogiParamBasicBar param_basic_bar_;
+            private YotogiOldParamBasicBar old_param_basic_bar_;
+
+            public bool IsReady
+            {
+                get { return param_basic_bar_ != null || old_param_basic_bar_ != null; }
+            }
+
+            public delegate void SetCurrentStatusDelegate(int cur_num, bool is_anime);
+
+            public SetCurrentStatusDelegate SetCurrentExcite;
+            public SetCurrentStatusDelegate SetCurrentMind;
+            public SetCurrentStatusDelegate SetCurrentReason;
+            public SetCurrentStatusDelegate SetCurrentSensual;
+
+            public void SetParamBasicBar(YotogiParamBasicBar paramBasicBar)
+            {
+                Clear();
+                if (paramBasicBar == null) return;
+                this.param_basic_bar_ = paramBasicBar;
+                this.SetCurrentExcite = new SetCurrentStatusDelegate(this.param_basic_bar_.SetCurrentExcite);
+                this.SetCurrentMind = new SetCurrentStatusDelegate(this.param_basic_bar_.SetCurrentMind);
+                this.SetCurrentSensual = new SetCurrentStatusDelegate(this.param_basic_bar_.SetCurrentSensual);
+            }
+
+            public void SetParamBasicBar(YotogiOldParamBasicBar paramBasicBar)
+            {
+                Clear();
+                if (paramBasicBar == null) return;
+                this.old_param_basic_bar_ = paramBasicBar;
+                this.SetCurrentExcite = new SetCurrentStatusDelegate(this.old_param_basic_bar_.SetCurrentExcite);
+                this.SetCurrentMind = new SetCurrentStatusDelegate(this.old_param_basic_bar_.SetCurrentMind);
+                this.SetCurrentReason = new SetCurrentStatusDelegate(this.old_param_basic_bar_.SetCurrentReason);
+            }
+
+            private void Clear()
+            {
+                this.param_basic_bar_ = null;
+                this.old_param_basic_bar_ = null;
+                this.SetCurrentExcite = null;
+                this.SetCurrentMind = null;
+                this.SetCurrentSensual = null;
+                this.SetCurrentReason = null;
+            }
+        }
+
 
         private class YotogiPanel : Container
         {
@@ -885,35 +1088,53 @@ namespace COM3D2.AddYotogiSlider.Plugin
 
         public void Awake()
         {
-            Logger.Init(this.DataPath, Preferences);
             try
             {
                 DontDestroyOnLoad(this);
-                initConfig();
-                LogDebug($"Starting {CoreUtil.PLUGIN_NAME} v{CoreUtil.PLUGIN_VERSION}");
 
-                if (CoreUtil.FinishLoadingConfig())
-                {
-                    SaveConfig();
-                }
+                _toggleKey = parseExIni("General", "ToggleWindow", _toggleKey);
+
+                pa["WIN.Load"] = new PlayAnime("WIN.Load", 2, 0.00f, 0.25f, PlayAnime.Formula.Quadratic);
+                pa["AHE.継続.0"] = new PlayAnime("AHE.継続.0", 1, 0.00f, 0.75f);
+                pa["AHE.絶頂.0"] = new PlayAnime("AHE.絶頂.0", 2, 6.00f, 9.00f);
+                pa["AHE.痙攣.0"] = new PlayAnime("AHE.痙攣.0", 1, 0.00f, 9.00f, PlayAnime.Formula.Convulsion);
+                pa["AHE.痙攣.1"] = new PlayAnime("AHE.痙攣.1", 1, 0.00f, 10.00f, PlayAnime.Formula.Convulsion);
+                pa["AHE.痙攣.2"] = new PlayAnime("AHE.痙攣.2", 1, 0.00f, 11.00f, PlayAnime.Formula.Convulsion);
+                pa["BOTE.絶頂"] = new PlayAnime("BOTE.絶頂", 1, 0.00f, 6.00f);
+                pa["BOTE.止める"] = new PlayAnime("BOTE.止める", 1, 0.00f, 4.00f);
+                pa["BOTE.流れ出る"] = new PlayAnime("BOTE.流れ出る", 1, 0.00f, 20.00f);
+                pa["KUPA.挿入.0"] = new PlayAnime("KUPA.挿入.0", 1, 0.50f, 1.50f);
+                pa["KUPA.挿入.1"] = new PlayAnime("KUPA.挿入.1", 1, 1.50f, 2.50f);
+                pa["KUPA.止める"] = new PlayAnime("KUPA.止める", 1, 0.00f, 2.00f);
+                pa["AKPA.挿入.0"] = new PlayAnime("AKPA.挿入.0", 1, 0.50f, 1.50f);
+                pa["AKPA.挿入.1"] = new PlayAnime("AKPA.挿入.1", 1, 1.50f, 2.50f);
+                pa["AKPA.止める"] = new PlayAnime("AKPA.止める", 1, 0.00f, 2.00f);
+                pa["KUPACL.剥く.0"] = new PlayAnime("KUPACL.剥く.0", 1, 0.00f, 0.30f);
+                pa["KUPACL.剥く.1"] = new PlayAnime("KUPACL.剥く.1", 1, 0.20f, 0.60f);
+                pa["KUPACL.被る"] = new PlayAnime("KUPACL.被る", 1, 0.00f, 0.40f);
+
+                LogDebug(string.Format("Starting {0} v{1}", AddYotogiSliderSE.PluginName, AddYotogiSliderSE.Version));
             }
             catch (Exception e)
             {
-                Logger.LogError(e);
+                LogError(e);
                 Destroy(this);
             }
         }
 
         //Overwrite for Level that is loaded.
-        //Level 14 is for Yotogi
-        //Level 15 is for Dance
+        //Level 14 is for Yotogi in Normal Mode
+        //Level 63 is for Yotogi in Compatibility Mode
         public void OnLevelWasLoaded(int level)
         {
             fPassedTimeOnLevel = 0f;
 
-            Logger.Log("Current Level Loaded is " + level.ToString(), Level.General);
+            LogInfo("Current Level Loaded is " + level.ToString());
 
-            if (level == 14)
+            bNormalYotogiScene = (level == 14);
+            bCompatibilityYotogiScene = (level == 63);
+
+            if (bNormalYotogiScene || bCompatibilityYotogiScene)
             {
                 StartCoroutine(initCoroutine(TimePerInit));
             }
@@ -923,80 +1144,105 @@ namespace COM3D2.AddYotogiSlider.Plugin
 
         public void Update()
         {
-//            if (Input.GetKeyDown(_toggleKey))
-//            {
-//                Logger.Log("Loading Inits");
-//                Logger.Log("Scene Level " + sceneLevel.ToString());
-//                Logger.Log("bInitCompleted " + bInitCompleted.ToString());
-//                Logger.Log("Fade Status " + yotogiPlayManager.fade_status.ToString());
-//            }
+#if DEBUG
+            if (Input.GetKeyDown(_toggleKey))
+            {
+                LogDebug("Loading Inits v" + AddYotogiSliderSE.Version);
+                LogDebug("Scene Level " + sceneLevel.ToString());
+                LogDebug("canStart " + canStart.ToString());
+                LogDebug("bInitCompleted " + bInitCompleted.ToString());
+                LogDebug("bLoadBoneAnimetion " + bLoadBoneAnimetion.ToString());
+                LogDebug("bFadeInWait " + bFadeInWait.ToString());
+                LogDebug("Fade Status " + ((playManagerAsWfScreenChildren != null) ? playManagerAsWfScreenChildren.fade_status.ToString() : "-"));
+                showMaidStatus();
+            }
 
+            if (playManagerAsWfScreenChildren != null)
+            {
+                WfScreenChildren.FadeStatus curFadeStatus = playManagerAsWfScreenChildren.fade_status;
+                if (curFadeStatus != lastFadeStatus)
+                {
+                    LogDebug("FadeStatus changed: " + curFadeStatus.ToString());
+                }
+                lastFadeStatus = curFadeStatus;
+            }
+#endif
             fPassedTimeOnLevel += Time.deltaTime;
 
-            if (sceneLevel == 14 && bInitCompleted)
+            if (bInitCompleted)
             {
-                switch (yotogiPlayManager.fade_status)
+                if (bNormalYotogiScene || bCompatibilityYotogiScene)
                 {
-
-                    case WfScreenChildren.FadeStatus.Null:
+                    switch (playManagerAsWfScreenChildren.fade_status)
                     {
-                        this.maid = GameMain.Instance.CharacterMgr.GetMaid(0);
-                        if (!this.maid) return;
-                        this.updateMaidEyePosY(0f);
 
-                        this.maid.ResetProp("Hara", true);
-                        updateSlider("Slider:Hara", iDefHara);
-                        if (bBokkiChikubiAvailable)
-                        {
-                            this.updateShapeKeyChikubiBokkiValue(iDefChikubiNae);
-                            this.updateShapeKeyChikubiTareValue(iDefChikubiTare);
-                        }
-                        finalize();
-                        }
-                    break;
-
-                    case WfScreenChildren.FadeStatus.FadeInWait:
-                    {
-                        if (!bFadeInWait)
-                        {
-                            bSyncMotionSpeed = false;
-                            bFadeInWait = true;
-                        }
-                    }
-                    break;
-
-                    case WfScreenChildren.FadeStatus.Wait:
-                    {
-                        if (bFadeInWait)
-                        {
-                            initOnStartSkill();
-                            bFadeInWait = false;
-                        }
-                        else if (canStart)
-                        {
-                            if (Input.GetKeyDown(_toggleKey))
+                        case WfScreenChildren.FadeStatus.Null:
                             {
-                                winAnimeRect = window.Rectangle;
-                                visible = !visible;
-                                playAnimeOnInputKeyDown();
+                                this.maid = GameMain.Instance.CharacterMgr.GetMaid(0);
+                                if (!this.maid) return;
+                                this.updateMaidEyePosY(fAheDefEye);
+
+                                this.maid.ResetProp("Hara", true);
+                                updateSlider("Slider:Hara", iDefHara);
+                                if (bBokkiChikubiAvailable)
+                                {
+                                    this.updateShapeKeyChikubiBokkiValue(iDefChikubiNae);
+                                    this.updateShapeKeyChikubiTareValue(iDefChikubiTare);
+                                }
+
+                                LogDebug("Pre-finalization complete.");
+                                finalize();
                             }
+                            break;
 
-                            if (fPassedTimeOnCommand >= 0f) fPassedTimeOnCommand += Time.deltaTime;
+                        case WfScreenChildren.FadeStatus.FadeInWait:
+                            {
+                                if (!bFadeInWait)
+                                {
+                                    bSyncMotionSpeed = false;
+                                    bFadeInWait = true;
+                                }
+                            }
+                            break;
 
-                            updateAnimeOnUpdate();
-                        }
+                        case WfScreenChildren.FadeStatus.Wait:
+                            {
+                                if (bFadeInWait)
+                                {
+                                    initOnStartSkill();
+                                    bFadeInWait = false;
+                                }
+                                else if (canStart)
+                                {
+                                    if (Input.GetKeyDown(_toggleKey))
+                                    {
+                                        winAnimeRect = window.Rectangle;
+                                        visible = !visible;
+                                        playAnimeOnInputKeyDown();
+                                    }
+
+                                    if (fPassedTimeOnCommand >= 0f) fPassedTimeOnCommand += Time.deltaTime;
+
+                                    updateAnimeOnUpdate();
+                                }
+                            }
+                            break;
+
+                        default: break;
                     }
-                    break;
-
-                    default: break;
                 }
+                else
+                {
+                    finalize();
+                }
+                
             }
         }
 
         //Initialising GUI
         public void OnGUI()
         {
-            if (sceneLevel == 14 && canStart)
+            if ((bNormalYotogiScene || bCompatibilityYotogiScene) && canStart)
             {
                 updateAnimeOnGUI();
 
@@ -1024,18 +1270,40 @@ namespace COM3D2.AddYotogiSlider.Plugin
 
             orgOnClickCommand(command_data);
 
-            playAnimeOnCommand(command_data.basic);
-            syncSlidersOnClickCommand(command_data.status);
-
-
-            if (command_data.basic.command_type == Yotogi.SkillCommandType.絶頂)
+            if (currentCommandData == null)
             {
-                if (!panel["FaceAnime"].Enabled && pa["AHE.絶頂.0"].NowPlaying)
-                {
-                    maid.FaceAnime(sAheOrgasmFace[idxAheOrgasm], 5f, 0);
-                    panel["FaceAnime"].HeaderUILabelText = sAheOrgasmFace[idxAheOrgasm];
-                }
+                currentCommandData = new CommonCommandData(command_data);
             }
+            else
+            {
+                currentCommandData.SetData(command_data);
+            }
+
+            afterYotogiPlayManagerOnClickCommand(currentCommandData);
+        }
+
+        public void OnYotogiOldPlayManagerOnClickCommand(Skill.Old.Data.Command.Data command_data)
+        {
+            iLastExcite = maid.status.currentExcite;
+            //fLastSliderSensitivity = slider["Sensitivity"].Value;
+            //iLastSliderFrustration = getSliderFrustration();
+            fPassedTimeOnCommand = 0f;
+
+            //if (panel["Status"].Enabled) updateMaidFrustration(iLastSliderFrustration);
+            initAnimeOnCommand();
+
+            orgOnClickCommandOld(command_data);
+
+            if (currentCommandData == null)
+            {
+                currentCommandData = new CommonCommandData(command_data);
+            }
+            else
+            {
+                currentCommandData.SetData(command_data);
+            }
+
+            afterYotogiPlayManagerOnClickCommand(currentCommandData);
         }
 
         public bool OnYotogiKagManagerTagFace(KagTagSupport tag_data)
@@ -1072,6 +1340,11 @@ namespace COM3D2.AddYotogiSlider.Plugin
         public void OnChangeSliderMind(object ys, SliderEventArgs args)
         {
             if (panel["Status"].Enabled) updateMaidMind((int)args.Value);
+        }
+
+        public void OnChangeSliderReason(object ys, SliderEventArgs args)
+        {
+            if (panel["Status"].Enabled) updateMaidReason((int)args.Value);
         }
 
         public void OnChangeSliderSensual(object ys, SliderEventArgs args)
@@ -1247,8 +1520,19 @@ namespace COM3D2.AddYotogiSlider.Plugin
         private IEnumerator initCoroutine(float waitTime)
         {
             yield return new WaitForSeconds(WaitFirstInit);
-            while (!(bInitCompleted = initPlugin())) yield return new WaitForSeconds(waitTime);
-            Logger.Log("Initialization complete.");
+            while (!(bInitCompleted = initPlugin()))
+            {
+                if (bNormalYotogiScene || bCompatibilityYotogiScene)
+                {
+                    yield return new WaitForSeconds(waitTime);
+                }
+                else
+                {
+                    LogInfo("Initialization canceled.");
+                    yield break;
+                }
+            }
+            LogInfo("Initialization complete.");
         }
 
         private bool initPlugin()
@@ -1262,28 +1546,57 @@ namespace COM3D2.AddYotogiSlider.Plugin
             this.maidFoceKuchipakuSelfUpdateTime = getFieldInfo<Maid>("m_bFoceKuchipakuSelfUpdateTime");
             if (IsNull(this.maidFoceKuchipakuSelfUpdateTime)) return false;
 
-            this.yotogiParamBasicBar = getInstance<YotogiParamBasicBar>();
-            if (!this.yotogiParamBasicBar) return false;
+            if (this.yotogiParamBasicBarDelegator == null) this.yotogiParamBasicBarDelegator = new YorogiParamBasicBarDelegator();
+            if (bNormalYotogiScene)
+            {
+                this.yotogiParamBasicBarDelegator.SetParamBasicBar(getInstance<YotogiParamBasicBar>());
+            }
+            else if (bCompatibilityYotogiScene)
+            {
+                this.yotogiParamBasicBarDelegator.SetParamBasicBar(getInstance<YotogiOldParamBasicBar>());
+            }
+            if (!this.yotogiParamBasicBarDelegator.IsReady) return false;
 
             // 夜伽コマンドフック Loading Kiss Object Instance so we can access them
             {
-                this.yotogiManager = getInstance<YotogiManager>();
-                if (!this.yotogiManager) return false;
-
-                this.yotogiPlayManager = getInstance<YotogiPlayManager>();
-                if (!this.yotogiPlayManager) return false;
-
-                YotogiCommandFactory cf = getFieldValue<YotogiPlayManager, YotogiCommandFactory>(this.yotogiPlayManager, "command_factory_");
-                if (IsNull(cf)) return false;
-
-                try
+                if (bNormalYotogiScene)
                 {
-                    cf.SetCommandCallback(new YotogiCommandFactory.CommandCallback(this.OnYotogiPlayManagerOnClickCommand));
-                }
-                catch (Exception ex) { LogError("SetCommandCallback() : {0}", ex); return false; }
+                    this.yotogiPlayManager = getInstance<YotogiPlayManager>();
+                    if (!this.yotogiPlayManager) return false;
 
-                this.orgOnClickCommand = getMethodDelegate<YotogiPlayManager, Action<Skill.Data.Command.Data>>(this.yotogiPlayManager, "OnClickCommand");
-                if (IsNull(this.orgOnClickCommand)) return false;
+                    this.playManagerAsWfScreenChildren = this.yotogiPlayManager;
+
+                    YotogiCommandFactory cf = getFieldValue<YotogiPlayManager, YotogiCommandFactory>(this.yotogiPlayManager, "command_factory_");
+                    if (IsNull(cf)) return false;
+
+                    try
+                    {
+                        cf.SetCommandCallback(new YotogiCommandFactory.CommandCallback(this.OnYotogiPlayManagerOnClickCommand));
+                    }
+                    catch (Exception ex) { LogError("SetCommandCallback() : {0}", ex); return false; }
+
+                    this.orgOnClickCommand = getMethodDelegate<YotogiPlayManager, Action<Skill.Data.Command.Data>>(this.yotogiPlayManager, "OnClickCommand");
+                    if (IsNull(this.orgOnClickCommand)) return false;
+                }
+                else
+                {
+                    this.yotogiOldPlayManager = getInstance<YotogiOldPlayManager>();
+                    if (!this.yotogiOldPlayManager) return false;
+
+                    this.playManagerAsWfScreenChildren = this.yotogiOldPlayManager;
+
+                    YotogiOldCommandFactory cf = getFieldValue<YotogiOldPlayManager, YotogiOldCommandFactory>(this.yotogiOldPlayManager, "command_factory_");
+                    if (IsNull(cf)) return false;
+
+                    try
+                    {
+                        cf.SetCommandCallback(new YotogiOldCommandFactory.CommandCallback(this.OnYotogiOldPlayManagerOnClickCommand));
+                    }
+                    catch (Exception ex) { LogError("SetCommandCallback() : {0}", ex); return false; }
+
+                    this.orgOnClickCommandOld = getMethodDelegate<YotogiOldPlayManager, Action<Skill.Old.Data.Command.Data>>(this.yotogiOldPlayManager, "OnClickCommand");
+                    if (IsNull(this.orgOnClickCommandOld)) return false;
+                }
             }
 
             // Face・FaceBlendフック
@@ -1310,14 +1623,20 @@ namespace COM3D2.AddYotogiSlider.Plugin
             }
 
             // ステージリスト取得
-            PhotoBGData.Create();
-            Dictionary<string, List<KeyValuePair<string, object>>> dictionary = new Dictionary<string, List<KeyValuePair<string, object>>>();
-            foreach (KeyValuePair<string, List<PhotoBGData>> current in PhotoBGData.category_list)
+            if (sStageNames.Count() == 0)
             {
-                for (int i = 0; i < current.Value.Count; i++)
+                List<string> stagesNormal = new List<string>();
+                PhotoBGData.Create();
+                Dictionary<string, List<KeyValuePair<string, object>>> dictionary = new Dictionary<string, List<KeyValuePair<string, object>>>();
+                foreach (KeyValuePair<string, List<PhotoBGData>> current in PhotoBGData.category_list)
                 {
-                    sStageNames.Add(current.Value[i].create_prefab_name);
+                    for (int i = 0; i < current.Value.Count; i++)
+                    {
+                        stagesNormal.Add(current.Value[i].create_prefab_name);
+                    }
                 }
+                List<string> stagesOld = CompatibilityModeStage.GetStageList();
+                sStageNames = stagesNormal.Union(stagesOld).ToList();
             }
 
             // PlayAnime
@@ -1361,29 +1680,38 @@ namespace COM3D2.AddYotogiSlider.Plugin
 
             // Window
             {
-                window = new Window(winRatioRect, AddYotogiSlider.Version, "Yotogi Slider");
+                window = new Window(winRatioRect, AddYotogiSliderSE.Version, "Yotogi Slider");
 
+                float excite = (float)maid.status.currentExcite;
                 float mind = (float)maid.status.currentMind;
-                //float reason = (float)maid.status.currentReason;
+                float reason = (float)maid.status.currentReason;
                 float sensual = (float)maid.status.currentSensual;
 
-                string[] sStagePrefab = YotogiStageSelectManager.SelectedStage.prefabName;
-//                for (int index = 0; index < sStagePrefab.Length; ++index)
-//                {
-//                    Logger.Log(sStagePrefab[index]);
-//                }
-                if (sStagePrefab[0] == "BathRoom")
+                string sStagePrefab = "";
+                if (bNormalYotogiScene)
                 {
-                    sStagePrefab[0] = "Bathroom";
+                    int i = (YotogiStageSelectManager.SelectedStageRefDayTime) ? 0 : 1;
+                    sStagePrefab = YotogiStageSelectManager.SelectedStage.prefabName[i];
                 }
-                int stageIndex = sStageNames.IndexOf(sStagePrefab[0]);
+                else if (bCompatibilityYotogiScene)
+                {
+                    sStagePrefab = YotogiOldStageSelectManager.StagePrefab;
+                }
+                int stageIndex = sStageNames.FindIndex(s => String.Equals(s, sStagePrefab, StringComparison.OrdinalIgnoreCase));
 
-                slider["Excite"] = new YotogiSlider("Slider:Excite", -100f, 300f, 0f, this.OnChangeSliderExcite, sliderName[0], true);
-                slider["Mind"] = new YotogiSlider("Slider:Mind", 0f, mind, 999f, this.OnChangeSliderMind, sliderName[1], true);
-                slider["Sensual"] = new YotogiSlider("Slider:Sensual", 0f, sensual, sensual, this.OnChangeSliderSensual, sliderName[2], true);
-                //slider["Sensitivity"] = new YotogiSlider("Slider:Sensitivity", -100f, 200f, sensual, this.OnChangeSliderSensitivity, sliderName[3], true);
-                slider["MotionSpeed"] = new YotogiSlider("Slider:MotionSpeed", 0f, 500f, 100f, this.OnChangeSliderMotionSpeed, sliderName[4], true);
-                slider["EyeY"] = new YotogiSlider("Slider:EyeY", 0f, 100f, fAheDefEye, this.OnChangeSliderEyeY, sliderNameAutoAHE[0], false);
+                slider["Excite"] = new YotogiSlider("Slider:Excite", -100f, 300f, excite, this.OnChangeSliderExcite, sliderName[0], true);
+                slider["Mind"] = new YotogiSlider("Slider:Mind", 0f, mind, mind, this.OnChangeSliderMind, sliderName[1], true);
+                if (bNormalYotogiScene)
+                {
+                    slider["Sensual"] = new YotogiSlider("Slider:Sensual", 0f, 300f, sensual, this.OnChangeSliderSensual, sliderName[2], true);
+                }
+                else if (bCompatibilityYotogiScene)
+                {
+                    slider["Reason"] = new YotogiSlider("Slider:Reason", 0f, reason, reason, this.OnChangeSliderReason, sliderName[3], true);
+                    //slider["Sensitivity"] = new YotogiSlider("Slider:Sensitivity", -100f, 200f, sensitivity, this.OnChangeSliderSensitivity, sliderName[4], true);
+                }
+                slider["MotionSpeed"] = new YotogiSlider("Slider:MotionSpeed", 0f, 500f, 100f, this.OnChangeSliderMotionSpeed, sliderName[5], true);
+                slider["EyeY"] = new YotogiSlider("Slider:EyeY", fAheDefEye, 100f, fAheDefEye, this.OnChangeSliderEyeY, sliderNameAutoAHE[0], false);
 
                 slider["ChikubiScale"] = new YotogiSlider("Slider:ChikubiScale", 1f, 100f, fChikubiScale, this.OnChangeSliderChikubiScale, sliderNameAutoTUN[0], true);
                 slider["ChikubiNae"] = new YotogiSlider("Slider:ChikubiNae", -15f, 150f, fChikubiNae, this.OnChangeSliderChikubiNae, sliderNameAutoTUN[1], true);
@@ -1434,14 +1762,24 @@ namespace COM3D2.AddYotogiSlider.Plugin
                 grid["FaceAnime"].Visible = false;
                 grid["FaceBlend"].Visible = false;
 
-                window.AddChild(lSelect["StageSelect"]);
-                window.AddHorizontalSpacer();
+                if (stageIndex >= 0)
+                {
+                    window.AddChild(lSelect["StageSelect"]);
+                    window.AddHorizontalSpacer();
+                }
 
                 panel["Status"] = window.AddChild<YotogiPanel>(new YotogiPanel("Panel:Status", "Status", YotogiPanel.HeaderUI.Slider));
                 panel["Status"].AddChild(slider["Excite"]);
                 panel["Status"].AddChild(slider["Mind"]);
-                panel["Status"].AddChild(slider["Sensual"]);
-                //panel["Status"].AddChild(slider["Sensitivity"]);
+                if (bNormalYotogiScene)
+                {
+                    panel["Status"].AddChild(slider["Sensual"]);
+                }
+                else if (bCompatibilityYotogiScene)
+                {
+                    panel["Status"].AddChild(slider["Reason"]);
+                    //panel["Status"].AddChild(slider["Sensitivity"]);
+                }
                 panel["Status"].AddChild(slider["MotionSpeed"]);
                 window.AddHorizontalSpacer();
 
@@ -1493,10 +1831,35 @@ namespace COM3D2.AddYotogiSlider.Plugin
                 panel["FaceBlend"].AddChild(grid["FaceBlend"]);
             }
 
+            // Preferences
             {
+                clearExIniComments(); // ReloadConfigでコメントが追加されるので先にクリア
                 ReloadConfig();
-                var general = CoreUtil.LoadSection("General");
-                general.LoadValue("ToggleWindow", ref _toggleKey);
+
+                _toggleKey = parseExIni("General", "ToggleWindow", _toggleKey);
+
+                panel["Status"].Enabled = parseExIni("Status", "EnableOnLoad", false);
+                if (panel["Status"].Enabled)
+                {
+                    slider["Excite"].Value = Math.Max(Math.Min(parseExIni("Status", "ExciteValue", 0f), 300f), -100f);
+                    slider["Excite"].Pin = parseExIni("Status", "ExcitePin", false);
+                    slider["Mind"].Pin = parseExIni("Status", "MindPin", false);
+                    if (bNormalYotogiScene)
+                    {
+                        if (slider["Sensual"].Value < 300f)
+                        {
+                            slider["Sensual"].Value = Math.Max(Math.Min(parseExIni("Status", "SensualValue", slider["Sensual"].Value), 300f), 0f);
+                        }
+                        slider["Sensual"].Pin = parseExIni("Status", "SensualPin", false);
+                    }
+                    else if (bCompatibilityYotogiScene)
+                    {
+                        slider["Reason"].Pin = parseExIni("Status", "ReasonPin", false);
+                        //slider["Sensitivity"].Value = Math.Max(Math.Min(parseExIni("Status", "SensitivityValue", slider["Sensitivity"].Value), 200f), -100f);
+                        //slider["Sensitivity"].Pin = parseExIni("Status", "SensitivityPin", false);
+                    }
+                    slider["MotionSpeed"].Pin = parseExIni("Status", "MotionSpeedPin", false);
+                }
 
                 panel["AutoAHE"].Enabled = parseExIni("AutoAHE", "Enabled", panel["AutoAHE"].Enabled);
                 toggle["Convulsion"].Value = parseExIni("AutoAHE", "ConvulsionEnabled", toggle["Convulsion"].Value);
@@ -1565,47 +1928,56 @@ namespace COM3D2.AddYotogiSlider.Plugin
                 {
                     iAnalKupaValue[i] = parseExIni("AutoKUPA_Anal", "Value_" + i, iAnalKupaValue[i]);
                 }
+
+                panel["FaceAnime"].Enabled = parseExIni("FaceAnime", "EnableOnLoad", false);
+                if (panel["FaceAnime"].Enabled)
+                {
+                    //toggle["Lipsync"].Value = parseExIni("FaceAnime", "LipsyncCancelling", false);
+                    //updateMaidFoceKuchipakuSelfUpdateTime(toggle["Lipsync"].Value);
+
+                    string faceName = parseExIni("FaceAnime", "FaceName", string.Empty);
+                    if (sFaceNames.Contains(faceName))
+                    {
+                        panel["FaceAnime"].HeaderUILabelText = faceName;
+                    }
+                }
+
+                panel["FaceBlend"].Enabled = parseExIni("FaceBlend", "EnableOnLoad", false);
+                if (panel["FaceBlend"].Enabled)
+                {
+                    string faceName = parseExIni("FaceBlend", "FaceName", string.Empty);
+                    if (sFaceNames.Contains(faceName))
+                    {
+                        panel["FaceBlend"].HeaderUILabelText = faceName;
+                    }
+                }
             }
 
             return true;
         }
 
-        private void initConfig()
-        {
-            CoreUtil.StartLoadingConfig(Preferences);
-
-            var general = CoreUtil.LoadSection("General");
-            general.LoadValue("ToggleWindow", ref _toggleKey);
-
-            pa["WIN.Load"] = new PlayAnime("WIN.Load", 2, 0.00f, 0.25f, PlayAnime.Formula.Quadratic);
-            pa["AHE.継続.0"] = new PlayAnime("AHE.継続.0", 1, 0.00f, 0.75f);
-            pa["AHE.絶頂.0"] = new PlayAnime("AHE.絶頂.0", 2, 6.00f, 9.00f);
-            pa["AHE.痙攣.0"] = new PlayAnime("AHE.痙攣.0", 1, 0.00f, 9.00f, PlayAnime.Formula.Convulsion);
-            pa["AHE.痙攣.1"] = new PlayAnime("AHE.痙攣.1", 1, 0.00f, 10.00f, PlayAnime.Formula.Convulsion);
-            pa["AHE.痙攣.2"] = new PlayAnime("AHE.痙攣.2", 1, 0.00f, 11.00f, PlayAnime.Formula.Convulsion);
-            pa["BOTE.絶頂"] = new PlayAnime("BOTE.絶頂", 1, 0.00f, 6.00f);
-            pa["BOTE.止める"] = new PlayAnime("BOTE.止める", 1, 0.00f, 4.00f);
-            pa["BOTE.流れ出る"] = new PlayAnime("BOTE.流れ出る", 1, 0.00f, 20.00f);
-            pa["KUPA.挿入.0"] = new PlayAnime("KUPA.挿入.0", 1, 0.50f, 1.50f);
-            pa["KUPA.挿入.1"] = new PlayAnime("KUPA.挿入.1", 1, 1.50f, 2.50f);
-            pa["KUPA.止める"] = new PlayAnime("KUPA.止める", 1, 0.00f, 2.00f);
-            pa["AKPA.挿入.0"] = new PlayAnime("AKPA.挿入.0", 1, 0.50f, 1.50f);
-            pa["AKPA.挿入.1"] = new PlayAnime("AKPA.挿入.1", 1, 1.50f, 2.50f);
-            pa["AKPA.止める"] = new PlayAnime("AKPA.止める", 1, 0.00f, 2.00f);
-            pa["KUPACL.剥く.0"] = new PlayAnime("KUPACL.剥く.0", 1, 0.00f, 0.30f);
-            pa["KUPACL.剥く.1"] = new PlayAnime("KUPACL.剥く.1", 1, 0.20f, 0.60f);
-            pa["KUPACL.被る"] = new PlayAnime("KUPACL.被る", 1, 0.00f, 0.40f);
-        }
-
-        private Skill.Data getCurrentSkillData()
+        private string getCurrentSkillName()
         {
             try
             {
-                Yotogi.SkillDataPair sdp = getFieldValue<YotogiPlayManager, Yotogi.SkillDataPair>(this.yotogiPlayManager, "skill_pair_");
-                return sdp.base_data;
+                if (bNormalYotogiScene)
+                {
+                    Yotogi.SkillDataPair sdp = getFieldValue<YotogiPlayManager, Yotogi.SkillDataPair>(this.yotogiPlayManager, "skill_pair_");
+                    return sdp.base_data.name;
+                }
+                else if (bCompatibilityYotogiScene)
+                {
+                    YotogiOld.SkillDataPair sdp = getFieldValue<YotogiOldPlayManager, YotogiOld.SkillDataPair>(this.yotogiOldPlayManager, "skill_pair_");
+                    return sdp.base_data.name;
+                }
+                else
+                {
+                    return null;
+                }
             }
             catch (Exception)
             {
+                LogDebug("Failed to get current skill name");
                 return null;
             }
         }
@@ -1619,6 +1991,11 @@ namespace COM3D2.AddYotogiSlider.Plugin
             iBoteCount = 0;
             iKupaDef = 0;
             iAnalKupaDef = 0;
+
+            if (panel["AutoAHE"].Enabled)
+            {
+                slider["EyeY"].Value = maid.body0.trsEyeL.localPosition.y * fEyePosToSliderMul;
+            }
 
             if (panel["AutoTUN"].Enabled)
             {
@@ -1637,13 +2014,13 @@ namespace COM3D2.AddYotogiSlider.Plugin
                 updateMaidHaraValue(iDefHara);
             }
 
-            Skill.Data sd = getCurrentSkillData();
-            if (sd != null)
+            string skillName = getCurrentSkillName();
+            if (!String.IsNullOrEmpty(skillName))
             {
-                LogDebug("Start Skill : {0}", sd.name);
-                KupaLevel kl = checkSkillKupaLevel(sd);
+                LogDebug("Start Skill : {0}", skillName);
+                KupaLevel kl = checkSkillKupaLevel(skillName);
                 if (kl != KupaLevel.None) iKupaDef = (int)(iKupaValue[(int)kl] * slider["KupaLevel"].Value / 100f);
-                kl = checkSkillAnalKupaLevel(sd);
+                kl = checkSkillAnalKupaLevel(skillName);
                 if (kl != KupaLevel.None) iAnalKupaDef = (int)(iAnalKupaValue[(int)kl] * slider["KupaLevel"].Value / 100f);
             }
 
@@ -1676,6 +2053,16 @@ namespace COM3D2.AddYotogiSlider.Plugin
             bSyncMotionSpeed = true;
             StartCoroutine(syncMotionSpeedSliderCoroutine(TimePerUpdateSpeed));
 
+            if (panel["Status"].Enabled && slider["Excite"].Pin)
+            {
+                // 夜伽開始時にiniの設定を反映するため
+                updateMaidExcite((int)slider["Excite"].Value);
+            }
+            else
+            {
+                slider["Excite"].Value = (float)maid.status.currentExcite;
+            }
+
             if (panel["Status"].Enabled && slider["Mind"].Pin)
             {
                 updateMaidMind((int)slider["Mind"].Value);
@@ -1683,6 +2070,29 @@ namespace COM3D2.AddYotogiSlider.Plugin
             else
             {
                 slider["Mind"].Value = (float)maid.status.currentMind;
+            }
+
+            if (bNormalYotogiScene)
+            {
+                // 官能は「発情させる」を使用するとスキル変更後0になる
+                if (panel["Status"].Enabled && slider["Sensual"].Pin)
+                {
+                    updateMaidSensual((int)slider["Sensual"].Value);
+                }
+                else
+                {
+                    slider["Sensual"].Value = (float)maid.status.currentSensual;
+                }
+            }
+
+            if (panel["FaceAnime"].Enabled)
+            {
+                maid.FaceAnime(panel["FaceAnime"].HeaderUILabelText, 1f, 0);
+            }
+
+            if (panel["FaceBlend"].Enabled)
+            {
+                maid.FaceBlend(panel["FaceBlend"].HeaderUILabelText);
             }
 
 //            if (lSelect["StageSelect"].CurrentName != YotogiStageSelectManager.StagePrefab)
@@ -1695,6 +2105,11 @@ namespace COM3D2.AddYotogiSlider.Plugin
         {
             try
             {
+                if (maid && toggle["Lipsync"]!=null && toggle["Lipsync"].Value)
+                {
+                    maidFoceKuchipakuSelfUpdateTime.SetValue(maid, false);
+                }
+
                 visible = false;
 
                 window = null;
@@ -1705,6 +2120,7 @@ namespace COM3D2.AddYotogiSlider.Plugin
                 lSelect.Clear();
 
                 bInitCompleted = false;
+                bLoadBoneAnimetion = false;
                 bSyncMotionSpeed = false;
                 fPassedTimeOnCommand = -1f;
                 bFadeInWait = false;
@@ -1723,13 +2139,19 @@ namespace COM3D2.AddYotogiSlider.Plugin
 
                 goCommandUnit = null;
                 maid = null;
-                maidStatusInfo = null;
+                //maidStatusInfo = null;
                 maidFoceKuchipakuSelfUpdateTime = null;
-                yotogiParamBasicBar = null;
                 yotogiPlayManager = null;
+                yotogiOldPlayManager = null;
+                playManagerAsWfScreenChildren = null;
                 orgOnClickCommand = null;
+                orgOnClickCommandOld = null;
 
-                if (kagScriptCallbacksOverride)
+                currentCommandData = null;
+                lastSkillName = null;
+                yotogiParamBasicBarDelegator = null;
+
+                if (kagScriptCallbacksOverride && (bNormalYotogiScene || bCompatibilityYotogiScene))
                 {
                     kagScript.RemoveTagCallBack("face");
                     kagScript.AddTagCallBack("face", new KagScript.KagTagCallBack(this.orgTagFace));
@@ -1741,6 +2163,8 @@ namespace COM3D2.AddYotogiSlider.Plugin
                     orgTagFace = null;
                     orgTagFaceBlend = null;
                 }
+
+                LogInfo("Finalization complete.");
             }
             catch (Exception ex) { LogError("finalize() : {0}", ex); return; }
 
@@ -1748,22 +2172,15 @@ namespace COM3D2.AddYotogiSlider.Plugin
 
         private void detectSkill()
         {
+            if (currentCommandData == null) return;
 
-            if (yotogiManager.play_skill_array == null) return;
-
-            foreach (YotogiManager.PlayingSkillData skillData in yotogiManager.play_skill_array.Reverse())
+            string currentSkillName = currentCommandData.skillName;
+            if (lastSkillName == null || !currentSkillName.Equals(lastSkillName))
             {
-                if (skillData.is_play)
-                {
-                    var yotogiName = skillData.skill_pair.base_data.name;
-                    if (currentYotogiName == null || !yotogiName.Equals(currentYotogiName))
-                    {
-                        Debug.Log(LogLabel + "Yotogi changed: " + currentYotogiName + " >> " + yotogiName);
-                        currentYotogiName = yotogiName;
-                    }
-                    break;
-                }
+                Debug.Log(LogLabel + "Yotogi changed: " + lastSkillName + " >> " + currentSkillName);
+                lastSkillName = currentSkillName;
             }
+            
         }
 
         private bool VertexMorph_FromProcItem(TBody body, string sTag, float f)
@@ -1811,7 +2228,7 @@ namespace COM3D2.AddYotogiSlider.Plugin
             if (!panel["AutoTUN"].Enabled) return;
 
             float from = Mathf.Max(iDefChikubiNae, slider["ChikubiBokki"].Value);
-            int i = (int)checkCommandTunLevel(this.currentYotogiData);
+            int i = (int)checkCommandTunLevel(this.currentCommandData.basic);
             if (i < 0) return;
 
             float to = from + (iTunValue[i] / 100f) * slider["ChikubiScale"].Value / 100f;
@@ -1825,7 +2242,7 @@ namespace COM3D2.AddYotogiSlider.Plugin
             }
         }
 
-        private void syncSlidersOnClickCommand(Skill.Data.Command.Data.Status cmStatus)
+        private void syncSlidersOnClickCommand(CommonCommandData.Status cmStatus)
         {
             if (panel["Status"].Enabled && slider["Excite"].Pin) updateMaidExcite((int)slider["Excite"].Value);
             else slider["Excite"].Value = (float)maid.status.currentExcite;
@@ -1833,15 +2250,23 @@ namespace COM3D2.AddYotogiSlider.Plugin
             if (panel["Status"].Enabled && slider["Mind"].Pin) updateMaidMind((int)slider["Mind"].Value);
             else slider["Mind"].Value = (float)maid.status.currentMind;
 
-            if (panel["Status"].Enabled && slider["Sensual"].Pin) updateMaidSensual((int)slider["Sensual"].Value);
-            else slider["Sensual"].Value = (float)maid.status.currentSensual;
+            if (bNormalYotogiScene)
+            {
+                if (panel["Status"].Enabled && slider["Sensual"].Pin) updateMaidSensual((int)slider["Sensual"].Value);
+                else slider["Sensual"].Value = (float)maid.status.currentSensual;
+            }
+            else if (bCompatibilityYotogiScene)
+            {
+                if (panel["Status"].Enabled && slider["Reason"].Pin) updateMaidReason((int)slider["Reason"].Value);
+                else slider["Reason"].Value = (float)maid.status.currentReason;
 
-            // コマンド実行によるfrustration変動でfrustrationは0-100内に補正される為、
-            // Statusパネル有効時はコマンド以前のスライダー値より感度を計算して表示
-            // メイドのfrustrationを実際に弄るのはコマンド直前のみ
-//            slider["Sensitivity"].Value = (float)(maid.Param.status.correction_data.excite
-//                + (panel["Status"].Enabled ? iLastSliderFrustration + cmStatus.frustration : maid.Param.status.frustration)
-//                + (maid.Param.status.cur_reason < 20 ? 20 : 0));
+                // コマンド実行によるfrustration変動でfrustrationは0-100内に補正される為、
+                // Statusパネル有効時はコマンド以前のスライダー値より感度を計算して表示
+                // メイドのfrustrationを実際に弄るのはコマンド直前のみ
+                //            slider["Sensitivity"].Value = (float)(maid.Param.status.correction_data.excite
+                //                + (panel["Status"].Enabled ? iLastSliderFrustration + cmStatus.frustration : maid.Param.status.frustration)
+                //                + (maid.Param.status.cur_reason < 20 ? 20 : 0));
+            }
 
             if (panel["Status"].Enabled && slider["MotionSpeed"].Pin) updateMotionSpeed(slider["MotionSpeed"].Value);
             else foreach (AnimationState stat in anm_BO_body001) if (stat.enabled) slider["MotionSpeed"].Value = stat.speed * 100f;
@@ -1940,10 +2365,25 @@ namespace COM3D2.AddYotogiSlider.Plugin
 
         }
 
-        private void playAnimeOnCommand(Skill.Data.Command.Data.Basic data)
+        private void afterYotogiPlayManagerOnClickCommand(CommonCommandData command_data)
+        {
+            playAnimeOnCommand(command_data.basic);
+            syncSlidersOnClickCommand(command_data.status);
+
+
+            if (command_data.basic.command_type == Yotogi.SkillCommandType.絶頂)
+            {
+                if (!panel["FaceAnime"].Enabled && pa["AHE.絶頂.0"].NowPlaying)
+                {
+                    maid.FaceAnime(sAheOrgasmFace[idxAheOrgasm], 5f, 0);
+                    panel["FaceAnime"].HeaderUILabelText = sAheOrgasmFace[idxAheOrgasm];
+                }
+            }
+        }
+
+        private void playAnimeOnCommand(CommonCommandData.Basic data)
         {
             LogDebug("Skill:{0} Command:{1} Type:{2}", data.group_name, data.name, data.command_type);
-            this.currentYotogiData = data;
 
             if (panel["AutoAHE"].Enabled)
             {
@@ -1977,6 +2417,17 @@ namespace COM3D2.AddYotogiSlider.Plugin
                     {
                         float to = fAheNormalEyeMax[i] * (excite - iAheExcite[i]) / (300f - iAheExcite[i]);
                         pa["AHE.継続.0"].Play(fAheLastEye, to);
+                    }
+                    else
+                    {
+                        if (bNormalYotogiScene)
+                        {
+                            pa["AHE.継続.0"].Play(fAheLastEye, fAheDefEye);
+                        }
+                        else
+                        {
+                            pa["AHE.継続.0"].Play(fAheLastEye, fAheLastEye - 0.1f);
+                        }
                     }
                 }
             }
@@ -2183,7 +2634,8 @@ namespace COM3D2.AddYotogiSlider.Plugin
                 // 放置中の瞳自然降下
                 if (!pa["AHE.継続.0"].NowPlaying && !pa["AHE.絶頂.0"].NowPlaying)
                 {
-                    float eyepos = maid.body0.trsEyeL.localPosition.y * fEyePosToSliderMul;
+                    // アニメーション開始時に瞳の位置がリセットされるので、現在のy座標ではなくスライダーの値を使用する
+                    float eyepos = slider["EyeY"].Value;
                     if (eyepos > fAheDefEye) updateMaidEyePosY(eyepos - fAheEyeDecrement * (int)(fPassedTimeOnCommand / 10));
                 }
             }
@@ -2194,7 +2646,7 @@ namespace COM3D2.AddYotogiSlider.Plugin
                 this.updateShapeKeyChikubiBokkiValue(slider["ChikubiBokki"].Value);
                 this.updateShapeKeyChikubiTareValue(slider["ChikubiTare"].Value);
                 this.detectSkill();
-                if (this.currentYotogiData != null)
+                if (this.currentCommandData != null)
                 {
                     animateAutoTun();
                 }
@@ -2209,9 +2661,9 @@ namespace COM3D2.AddYotogiSlider.Plugin
                 if (!pa["BOTE.絶頂"].NowPlaying && (pa["BOTE.止める"].NowPlaying || pa["BOTE.流れ出る"].NowPlaying)) iCurrentHara = (int)slider["Hara"].Value;
 
                 this.detectSkill();
-                if (this.currentYotogiData != null && this.currentYotogiData.command_type != Yotogi.SkillCommandType.絶頂)
+                if (this.currentCommandData != null && this.currentCommandData.basic.command_type != Yotogi.SkillCommandType.絶頂)
                 {
-                    if (this.currentYotogiData != null && this.currentYotogiData.command_type == Yotogi.SkillCommandType.止める)
+                    if (this.currentCommandData.basic.command_type == Yotogi.SkillCommandType.止める)
                     {
                         float from = (float)Mathf.Max(iCurrentHara, iDefHara);
                         float to = iDefHara;
@@ -2306,27 +2758,32 @@ namespace COM3D2.AddYotogiSlider.Plugin
             GUIStyle winStyle = "box";
             winStyle.fontSize = PV.Font("C1");
             winStyle.alignment = TextAnchor.UpperRight;
-            winAnimeRect = GUI.Window(0, winAnimeRect, dummyWin, AddYotogiSlider.Version, winStyle);
+            winAnimeRect = GUI.Window(0, winAnimeRect, dummyWin, AddYotogiSliderSE.Version, winStyle);
         }
 
         private void updateMaidExcite(int value)
         {
             maid.status.currentExcite = value;
-            yotogiParamBasicBar.SetCurrentExcite(value, true);
+            yotogiParamBasicBarDelegator.SetCurrentExcite(value, true);
             iLastExcite = maid.status.currentExcite;
         }
 
         private void updateMaidMind(int value)
         {
             maid.status.currentMind = value;
-            yotogiParamBasicBar.SetCurrentMind(value, true);
+            yotogiParamBasicBarDelegator.SetCurrentMind(value, true);
+        }
+
+        private void updateMaidReason(int value)
+        {
+            maid.status.currentReason = value;
+            yotogiParamBasicBarDelegator.SetCurrentReason(value, true);
         }
 
         private void updateMaidSensual(int value)
         {
             maid.status.currentSensual = value;
-            yotogiParamBasicBar.SetCurrentSensual(value, true);
-            //yotogiParamBasicBar.SetCurrentReason(value, true);
+            yotogiParamBasicBarDelegator.SetCurrentSensual(value, true);
         }
 
 //        private void updateMaidFrustration(int value)
@@ -2338,11 +2795,11 @@ namespace COM3D2.AddYotogiSlider.Plugin
 
         private void updateMaidEyePosY(float value)
         {
-            if (value < 0f) value = 0f;
+            if (value < fAheDefEye) value = fAheDefEye;
             Vector3 vl = maid.body0.trsEyeL.localPosition;
             Vector3 vr = maid.body0.trsEyeR.localPosition;
-            maid.body0.trsEyeL.localPosition = new Vector3(vl.x, Math.Max((fAheDefEye + value) / fEyePosToSliderMul, 0f), vl.z);
-            maid.body0.trsEyeR.localPosition = new Vector3(vl.x, Math.Min((fAheDefEye - value) / fEyePosToSliderMul, 0f), vl.z);
+            maid.body0.trsEyeL.localPosition = new Vector3(vl.x, value / fEyePosToSliderMul, vl.z);
+            maid.body0.trsEyeR.localPosition = new Vector3(vr.x, -value / fEyePosToSliderMul, vr.z);
 
             updateSlider("Slider:EyeY", value);
         }
@@ -2569,6 +3026,8 @@ namespace COM3D2.AddYotogiSlider.Plugin
         {
             yield return new WaitForSeconds(waitTime);
 
+            if (!maid) yield break;
+
             this.anm_BO_body001 = maid.body0.GetAnimation();
 
             List<GameObject> go_BO_mbody = new List<GameObject>();
@@ -2590,7 +3049,7 @@ namespace COM3D2.AddYotogiSlider.Plugin
             //LogDebug("BoneAnimetion : {0}", i);
         }
 
-        private TunLevel checkCommandTunLevel(Skill.Data.Command.Data.Basic cmd)
+        private TunLevel checkCommandTunLevel(CommonCommandData.Basic cmd)
         {
             // 止める
             if (cmd.name.Contains("止める")
@@ -2653,27 +3112,28 @@ namespace COM3D2.AddYotogiSlider.Plugin
             return TunLevel.None;
         }
 
-        private KupaLevel checkSkillKupaLevel(Skill.Data sd)
+        private KupaLevel checkSkillKupaLevel(string skillName)
         {
-            if (sd.name.StartsWith("バイブ責めアナルセックス")) return KupaLevel.Vibe;
-            if (sd.name.StartsWith("露出プレイ")) return KupaLevel.Vibe;
-            if (sd.name.StartsWith("犬プレイ")) return KupaLevel.Vibe;
+            if (skillName.StartsWith("バイブ責めアナルセックス")) return KupaLevel.Vibe;
+            if (skillName.Contains("露出プレイ")) return KupaLevel.Vibe;
+            if (skillName.Contains("犬プレイ") && !skillName.Contains("セックス")) return KupaLevel.Vibe;
             return KupaLevel.None;
         }
 
-        private KupaLevel checkSkillAnalKupaLevel(Skill.Data sd)
+        private KupaLevel checkSkillAnalKupaLevel(string skillName)
         {
-            if (sd.name.StartsWith("アナルバイブ責めセックス")) return KupaLevel.Vibe;
+            if (skillName.StartsWith("アナルバイブ責めセックス")) return KupaLevel.Vibe;
             return KupaLevel.None;
         }
 
-        private KupaLevel checkCommandKupaLevel(Skill.Data.Command.Data.Basic cmd)
+        private KupaLevel checkCommandKupaLevel(CommonCommandData.Basic cmd)
         {
             if (cmd.command_type == Yotogi.SkillCommandType.挿入)
             {
+                if (cmd.group_name.Contains("素股")) return KupaLevel.None;
                 if (!cmd.group_name.Contains("アナル"))
                 {
-                    string[] t0 = { "セックス", "太バイブ", "正常位", "後背位", "騎乗位" };
+                    string[] t0 = { "セックス", "太バイブ", "正常位", "後背位", "騎乗位", "立位", "側位", "座位", "駅弁", "寝バック" };
                     if (t0.Any(t => cmd.group_name.Contains(t))) return KupaLevel.Sex;
 
                     string[] t1 = { "愛撫", "オナニー", "バイブ", "シックスナイン",
@@ -2705,13 +3165,13 @@ namespace COM3D2.AddYotogiSlider.Plugin
             return KupaLevel.None;
         }
 
-        private KupaLevel checkCommandAnalKupaLevel(Skill.Data.Command.Data.Basic cmd)
+        private KupaLevel checkCommandAnalKupaLevel(CommonCommandData.Basic cmd)
         {
             if (cmd.group_name.StartsWith("アナルバイブ責めセックス")) return KupaLevel.None;
             if (cmd.command_type == Yotogi.SkillCommandType.挿入)
             {
                 string[] t0 = { "アナルセックス", "アナル正常位", "アナル後背位", "アナル騎乗位",
-                    "2穴", "4P", "アナル処女喪失", "アナル処女再喪失"};
+                    "2穴", "4P", "アナル処女喪失", "アナル処女再喪失", "アナル寝バック", "アナル駅弁", "アナル座位"};
                 if (t0.Any(t => cmd.group_name.Contains(t))) return KupaLevel.Sex;
 
                 string[] t1 = { "アナルバイブ", "アナルオナニー" };
@@ -2724,7 +3184,7 @@ namespace COM3D2.AddYotogiSlider.Plugin
             return KupaLevel.None;
         }
 
-        private bool checkCommandKupaStop(Skill.Data.Command.Data.Basic cmd)
+        private bool checkCommandKupaStop(CommonCommandData.Basic cmd)
         {
             if (cmd.group_name == "まんぐり返しアナルセックス")
             {
@@ -2734,7 +3194,7 @@ namespace COM3D2.AddYotogiSlider.Plugin
             return checkCommandAnyKupaStop(cmd);
         }
 
-        private bool checkCommandAnalKupaStop(Skill.Data.Command.Data.Basic cmd)
+        private bool checkCommandAnalKupaStop(CommonCommandData.Basic cmd)
         {
             if (cmd.command_type == Yotogi.SkillCommandType.絶頂)
             {
@@ -2743,7 +3203,7 @@ namespace COM3D2.AddYotogiSlider.Plugin
             return checkCommandAnyKupaStop(cmd);
         }
 
-        private bool checkCommandAnyKupaStop(Skill.Data.Command.Data.Basic cmd)
+        private bool checkCommandAnyKupaStop(CommonCommandData.Basic cmd)
         {
             if (cmd.command_type == Yotogi.SkillCommandType.止める) return true;
             if (cmd.command_type == Yotogi.SkillCommandType.絶頂)
@@ -2763,6 +3223,19 @@ namespace COM3D2.AddYotogiSlider.Plugin
                 if (cmd.name.Contains("放尿させる")) return true;
             }
             return false;
+        }
+
+        private void clearExIniComments()
+        {
+            Preferences.Comments.Comments.Clear();
+            foreach (ExIni.IniSection section in Preferences.Sections)
+            {
+                section.Comments.Comments.Clear();
+                foreach (ExIni.IniKey key in section.Keys)
+                {
+                    key.Comments.Comments.Clear();
+                }
+            }
         }
 
         private T parseExIni<T>(string section, string key, T def)
@@ -2818,9 +3291,22 @@ namespace COM3D2.AddYotogiSlider.Plugin
         }
 
         [System.Diagnostics.Conditional("DEBUG")]
+        private void showMaidStatus()
+        {
+            if (maid)
+            {
+                LogDebug("Maid Excite {0}", maid.status.currentExcite);
+                LogDebug("Maid Mind {0}", maid.status.currentMind);
+                LogDebug("Maid Reason {0}", maid.status.currentReason);
+                LogDebug("Maid Sensual {0}", maid.status.currentSensual);
+                LogDebug("Maid Eye Y {0}", maid.body0.trsEyeL.localPosition.y * fEyePosToSliderMul);
+            }
+        }
+
+        [System.Diagnostics.Conditional("DEBUG")]
         private static void LogDebug(string msg, params object[] args)
         {
-            Logger.Log(LogLabel + string.Format(msg, args), Level.General);
+            Debug.Log(LogLabel + string.Format(msg, args));
         }
 
         private static void LogWarning(string msg, params object[] args)
@@ -2836,6 +3322,11 @@ namespace COM3D2.AddYotogiSlider.Plugin
         private static void LogError(object ex)
         {
             LogError("{0}", ex);
+        }
+
+        private static void LogInfo(string msg, params object[] args)
+        {
+            Console.WriteLine(LogLabel + string.Format(msg, args));
         }
 
         #endregion
@@ -2937,6 +3428,645 @@ namespace COM3D2.AddYotogiSlider.Plugin
         }
 
         #endregion
+    }
+
+}
+
+namespace UnityObsoleteGui
+{
+
+    public abstract class Element : IComparable<Element>
+    {
+        protected readonly int id;
+
+        protected string name;
+        protected Rect rect;
+        protected bool visible;
+
+        public string Name { get { return name; } }
+
+        public virtual Rect Rectangle { get { return rect; } }
+        public virtual float Left { get { return rect.x; } }
+        public virtual float Top { get { return rect.y; } }
+        public virtual float Width { get { return rect.width; } }
+        public virtual float Height { get { return rect.height; } }
+        public virtual bool Visible
+        {
+            get { return visible; }
+            set
+            {
+                visible = value;
+                if (Parent != null) notifyParent(false, true);
+            }
+        }
+
+        public Container Parent = null;
+        public event EventHandler<ElementEventArgs> NotifyParent = delegate { };
+
+
+        public Element() { }
+        public Element(string name, Rect rect)
+        {
+            this.id = this.GetHashCode();
+            this.name = name;
+            this.rect = rect;
+            this.visible = true;
+        }
+
+        public virtual void Draw() { Draw(this.rect); }
+        public virtual void Draw(Rect outRect) { }
+        public virtual void Resize() { Resize(false); }
+        public virtual void Resize(bool broadCast) { if (!broadCast) notifyParent(true, false); }
+
+        public virtual int CompareTo(Element e) { return this.name.CompareTo(e.Name); }
+
+        protected virtual void notifyParent(bool sizeChanged, bool visibleChanged)
+        {
+            NotifyParent(this, new ElementEventArgs(name, sizeChanged, visibleChanged));
+        }
+    }
+
+
+    public abstract class Container : Element, IEnumerable<Element>
+    {
+        public static Element Find(Container parent, string s) { return Container.Find<Element>(parent, s); }
+        public static T Find<T>(Container parent, string s) where T : Element
+        {
+            if (parent == null) return null;
+
+            foreach (Element e in parent)
+            {
+                if (e is T && e.Name == s) return e as T;
+                if (e is Container)
+                {
+                    T e2 = Find<T>(e as Container, s);
+                    if (e2 != null) return e2 as T;
+                }
+            }
+
+            return null;
+        }
+
+        //----
+
+        protected List<Element> children = new List<Element>();
+
+        public int ChildCount { get { return children.Count; } }
+
+
+        public Container(string name, Rect rect) : base(name, rect) { }
+
+        public Element this[string s]
+        {
+            get { return GetChild<Element>(s); }
+            set { if (value is Element) AddChild(value); }
+        }
+
+        public Element AddChild(Element child) { return AddChild<Element>(child); }
+        public T AddChild<T>(T child) where T : Element
+        {
+            if (child != null && !children.Contains(child))
+            {
+                child.Parent = this;
+                child.NotifyParent += this.onChildChenged;
+                children.Add(child);
+                Resize();
+
+                return child;
+            }
+
+            return null;
+        }
+
+        public Element GetChild(string s) { return GetChild<Element>(s); }
+        public T GetChild<T>() where T : Element { return GetChild<T>(""); }
+        public T GetChild<T>(string s) where T : Element
+        {
+            return children.FirstOrDefault(e => e is T && (s == "" ? true : e.Name == s)) as T;
+        }
+
+        public void RemoveChild(string s)
+        {
+            Element child = children.FirstOrDefault(e => e.Name == s);
+            if (child != null)
+            {
+                child.Parent = null;
+                child.NotifyParent -= this.onChildChenged;
+                children.Remove(child);
+                Resize();
+            }
+        }
+
+        public void RemoveChildren()
+        {
+            foreach (Element child in children)
+            {
+                child.Parent = null;
+                child.NotifyParent -= this.onChildChenged;
+            }
+            children.Clear();
+            Resize();
+        }
+
+        public virtual void onChildChenged(object sender, EventArgs e) { Resize(); }
+
+        IEnumerator IEnumerable.GetEnumerator() { return this.GetEnumerator(); }
+        public IEnumerator<Element> GetEnumerator() { return children.GetEnumerator(); }
+
+    }
+
+
+    public class Window : Container
+    {
+
+        #region Constants
+        public const float AutoLayout = -1f;
+
+        [Flags]
+        public enum Scroll
+        {
+            None = 0x00,
+            HScroll = 0x01,
+            VScroll = 0x02
+        }
+
+        #endregion
+
+
+
+        #region Nested classes
+
+        private class HorizontalSpacer : Element
+        {
+            public HorizontalSpacer(float height)
+            : base("Spacer:", new Rect(Window.AutoLayout, Window.AutoLayout, Window.AutoLayout, height))
+            {
+                this.name += this.id;
+            }
+        }
+
+        #endregion
+
+
+
+        #region Variables
+
+        private Rect sizeRatio;
+        private Rect baseRect;
+        private Rect titleRect;
+        private Rect contentRect;
+        private Vector2 autoSize = Vector2.zero;
+        private Vector2 hScrollViewPos = Vector2.zero;
+        private Vector2 vScrollViewPos = Vector2.zero;
+        private Vector2 lastScreenSize;
+        private int colums = 1;
+
+        public GUIStyle WindowStyle = "window";
+        public GUIStyle LabelStyle = "label";
+        public string HeaderText;
+        public int HeaderFontSize;
+        public string TitleText;
+        public float TitleHeight;
+        public int TitleFontSize;
+        public Scroll scroll = Scroll.None;
+
+        #endregion
+
+
+
+        #region Methods
+
+        public Window(Rect ratio, string header, string title) : this(title, ratio, header, title, null) { }
+        public Window(string name, Rect ratio, string header, string title) : this(name, ratio, header, title, null) { }
+        public Window(string name, Rect ratio, string header, string title, List<Element> children) : base(name, PV.PropScreenMH(ratio))
+        {
+            this.sizeRatio = ratio;
+            this.HeaderText = header;
+            this.TitleText = title;
+            this.TitleHeight = PV.Line("C1");
+
+            if (children != null && children.Count > 0)
+            {
+                this.children = new List<Element>(children);
+                foreach (Element child in children)
+                {
+                    child.Parent = this;
+                    child.NotifyParent += this.onChildChenged;
+
+                }
+                Resize();
+            }
+
+            lastScreenSize = new Vector2(Screen.width, Screen.height);
+        }
+
+        public override void Draw(Rect outRect)
+        {
+            if (propScreen())
+            {
+                resizeAllChildren(this);
+                Resize();
+                outRect = rect;
+            }
+
+            WindowStyle.fontSize = PV.Font("C2");
+            WindowStyle.alignment = TextAnchor.UpperRight;
+
+            rect = GUI.Window(id, outRect, drawWindow, HeaderText, WindowStyle);
+        }
+
+        public override void Resize()
+        {
+            calcAutoSize();
+        }
+
+        public Element AddHorizontalSpacer() { return AddHorizontalSpacer((float)PV.Margin); }
+        public Element AddHorizontalSpacer(float height) { return AddChild(new HorizontalSpacer(height)); }
+
+        //----
+
+        private void drawWindow(int id)
+        {
+            TitleHeight = PV.Line("C1");
+            TitleFontSize = PV.Font("C2");
+
+            LabelStyle.fontSize = TitleFontSize;
+            LabelStyle.alignment = TextAnchor.UpperLeft;
+            GUI.Label(titleRect, TitleText, LabelStyle);
+
+            GUI.BeginGroup(contentRect);
+            {
+                Rect cur = new Rect(0f, 0f, 0f, 0f);
+
+                foreach (Element child in children)
+                {
+                    if (!child.Visible) continue;
+
+                    if (child.Left >= 0 || child.Top >= 0)
+                    {
+                        Rect tmp = new Rect((child.Left >= 0) ? child.Left : cur.x,
+                                              (child.Top >= 0) ? child.Top : cur.y,
+                                              (child.Width > 0) ? child.Width : autoSize.x,
+                                              (child.Height > 0) ? child.Height : autoSize.y);
+
+                        child.Draw(tmp);
+                    }
+                    else
+                    {
+                        cur.width = (child.Width > 0) ? child.Width : autoSize.x;
+                        cur.height = (child.Height > 0) ? child.Height : autoSize.y;
+                        child.Draw(cur);
+                        cur.y += cur.height;
+                    }
+                }
+            }
+            GUI.EndGroup();
+
+            GUI.DragWindow();
+        }
+
+        private bool propScreen()
+        {
+            Vector2 screenSize = new Vector2(Screen.width, Screen.height);
+            if (lastScreenSize != screenSize)
+            {
+                rect = PV.PropScreenMH(rect.x, rect.y, sizeRatio.width, sizeRatio.height, lastScreenSize);
+                lastScreenSize = screenSize;
+                calcRectSize();
+                return true;
+            }
+            return false;
+        }
+
+        private void calcRectSize()
+        {
+            baseRect = PV.InsideRect(rect);
+            titleRect = new Rect(PV.Margin, 0, baseRect.width, TitleHeight);
+            contentRect = new Rect(baseRect.x, baseRect.y + titleRect.height, baseRect.width, baseRect.height - titleRect.height);
+        }
+
+        public void calcAutoSize()
+        {
+            Vector2 used = Vector2.zero;
+            Vector2 count = Vector2.zero;
+
+            foreach (Element child in children)
+            {
+                if (!child.Visible) continue;
+
+                if (!(child.Left > 0 || child.Top > 0) && child.Width > 0) used.x += child.Width;
+                else count.x += 1;
+
+                if (!(child.Left > 0 || child.Top > 0) && child.Height > 0) used.y += child.Height;
+                else count.y += 1;
+            }
+
+            {
+                bool rectChanged = false;
+
+                if ((scroll & Window.Scroll.HScroll) == 0x00)
+                {
+                    if (contentRect.width < used.x || (contentRect.width > used.x && count.x == 0))
+                    {
+                        rect.width = used.x + PV.Margin * 2;
+                        rectChanged = true;
+                    }
+                }
+
+                if ((scroll & Window.Scroll.VScroll) == 0x00)
+                {
+                    if (contentRect.height < used.y || (contentRect.height > used.y && count.y == 0))
+                    {
+                        rect.height = used.y + titleRect.height + PV.Margin * 3;
+                        rectChanged = true;
+                    }
+                }
+
+                if (rectChanged) calcRectSize();
+            }
+
+            autoSize.x = (count.x > 0) ? (contentRect.width - used.x) / colums : contentRect.width;
+            autoSize.y = (count.y > 0) ? (contentRect.height - used.y) / (float)Math.Ceiling(count.y / colums) : contentRect.height;
+        }
+
+        private void resizeAllChildren(Container parent)
+        {
+            if (parent == null) return;
+
+            foreach (Element child in parent)
+            {
+                if (child is Container) resizeAllChildren(child as Container);
+                else child.Resize(true);
+            }
+        }
+
+        #endregion
+
+    }
+
+
+    public class HSlider : Element
+    {
+        public GUIStyle Style = "horizontalSlider";
+        public GUIStyle ThumbStyle = "horizontalSliderThumb";
+        public float Value;
+        public float Min;
+        public float Max;
+
+        public event EventHandler<SliderEventArgs> OnChange;
+
+        public HSlider(string name, Rect rect, float min, float max, float def, EventHandler<SliderEventArgs> _OnChange) : base(name, rect)
+        {
+            this.Value = def;
+            this.Min = min;
+            this.Max = max;
+            this.OnChange += _OnChange;
+        }
+
+        public override void Draw(Rect outRect)
+        {
+            onChange(GUI.HorizontalSlider(outRect, Value, Min, Max, Style, ThumbStyle));
+        }
+
+        private void onChange(float newValue)
+        {
+            if (newValue != Value)
+            {
+                OnChange(this, new SliderEventArgs(name, newValue));
+                Value = newValue;
+            }
+        }
+    }
+
+    public class Toggle : Element
+    {
+        private bool val;
+
+        public GUIStyle Style = "toggle";
+        public GUIContent Content;
+        public bool Value { get { return val; } set { val = value; } }
+        public string Text { get { return Content.text; } set { Content.text = value; } }
+
+        public event EventHandler<ToggleEventArgs> OnChange;
+
+        public Toggle(string name, Rect rect, EventHandler<ToggleEventArgs> _OnChange) : this(name, rect, false, "", _OnChange) { }
+        public Toggle(string name, Rect rect, bool def, EventHandler<ToggleEventArgs> _OnChange) : this(name, rect, def, "", _OnChange) { }
+        public Toggle(string name, Rect rect, string text, EventHandler<ToggleEventArgs> _OnChange) : this(name, rect, false, text, _OnChange) { }
+        public Toggle(string name, Rect rect, bool def, string text, EventHandler<ToggleEventArgs> _OnChange) : base(name, rect)
+        {
+            this.val = def;
+            this.Content = new GUIContent(text);
+            this.OnChange += _OnChange;
+        }
+
+        public override void Draw(Rect outRect)
+        {
+            onChange(GUI.Toggle(outRect, Value, Content, Style));
+        }
+
+        private void onChange(bool newValue)
+        {
+            if (newValue != val) OnChange(this, new ToggleEventArgs(name, newValue));
+            val = newValue;
+        }
+    }
+
+    public class SelectButton : Element
+    {
+        private string[] buttonNames;
+        private int selected = 0;
+
+        public int SelectedIndex { get { return selected; } }
+        public string Value { get { return buttonNames[selected]; } }
+
+        public event EventHandler<SelectEventArgs> OnSelect;
+
+        public SelectButton(string name, Rect rect, string[] buttonNames, EventHandler<SelectEventArgs> _onSelect) : base(name, rect)
+        {
+            this.buttonNames = buttonNames;
+            this.OnSelect += _onSelect;
+        }
+
+        public override void Draw(Rect outRect)
+        {
+            onSelect(GUI.Toolbar(outRect, selected, buttonNames));
+        }
+
+        private void onSelect(int newSelected)
+        {
+            if (selected != newSelected)
+            {
+                OnSelect(this, new SelectEventArgs(name, newSelected, buttonNames[newSelected]));
+                selected = newSelected;
+            }
+        }
+    }
+
+
+    public class ElementEventArgs : EventArgs
+    {
+        public string Name;
+        public bool SizeChanged;
+        public bool VisibleChanged;
+
+        public ElementEventArgs(string name, bool sizeChanged, bool visibleChanged)
+        {
+            this.Name = name;
+            this.SizeChanged = sizeChanged;
+            this.VisibleChanged = visibleChanged;
+        }
+    }
+
+    public class SliderEventArgs : EventArgs
+    {
+        public string Name;
+        public float Value;
+
+        public SliderEventArgs(string name, float value)
+        {
+            this.Name = name;
+            this.Value = value;
+        }
+    }
+
+    public class ButtonEventArgs : EventArgs
+    {
+        public string Name;
+        public string ButtonName;
+
+        public ButtonEventArgs(string name, string buttonName)
+        {
+            this.Name = name;
+            this.ButtonName = buttonName;
+        }
+    }
+
+    public class ToggleEventArgs : EventArgs
+    {
+        public string Name;
+        public bool Value;
+
+        public ToggleEventArgs(string name, bool b)
+        {
+            this.Name = name;
+            this.Value = b;
+        }
+    }
+
+    public class SelectEventArgs : EventArgs
+    {
+        public string Name;
+        public int Index;
+        public string ButtonName;
+
+        public SelectEventArgs(string name, int idx, string buttonName)
+        {
+            this.Name = name;
+            this.Index = idx;
+            this.ButtonName = buttonName;
+        }
+    }
+
+
+    public static class PixelValuesCM3D2
+    {
+
+        #region Variables
+
+        private static int margin = 10;
+        private static Dictionary<string, int> font = new Dictionary<string, int>();
+        private static Dictionary<string, int> line = new Dictionary<string, int>();
+        private static Dictionary<string, int> sys = new Dictionary<string, int>();
+
+        public static float BaseWidth = 1280f;
+        public static float PropRatio = 0.6f;
+        public static int Margin { get { return PropPx(margin); } set { margin = value; } }
+
+        #endregion
+
+
+
+        #region Methods
+
+        static PixelValuesCM3D2()
+        {
+            font["C1"] = 12;
+            font["C2"] = 11;
+            font["H1"] = 20;
+            font["H2"] = 16;
+            font["H3"] = 14;
+
+            line["C1"] = 18;
+            line["C2"] = 14;
+            line["H1"] = 30;
+            line["H2"] = 24;
+            line["H3"] = 22;
+
+            sys["Menu.Height"] = 45;
+            sys["OkButton.Height"] = 95;
+
+            sys["HScrollBar.Width"] = 15;
+        }
+
+        public static int Font(string key) { return PropPx(font[key]); }
+        public static int Line(string key) { return PropPx(line[key]); }
+        public static int Sys(string key) { return PropPx(sys[key]); }
+
+        public static int Font_(string key) { return font[key]; }
+        public static int Line_(string key) { return line[key]; }
+        public static int Sys_(string key) { return sys[key]; }
+
+        public static Rect PropScreen(Rect ratio)
+        {
+            return new Rect((Screen.width - Margin * 2) * ratio.x + Margin
+                           , (Screen.height - Margin * 2) * ratio.y + Margin
+                           , (Screen.width - Margin * 2) * ratio.width
+                           , (Screen.height - Margin * 2) * ratio.height);
+        }
+
+        public static Rect PropScreenMH(Rect ratio)
+        {
+            Rect r = PropScreen(ratio);
+            r.y += Sys("Menu.Height");
+            r.height -= (Sys("Menu.Height") + Sys("OkButton.Height"));
+
+            return r;
+        }
+
+        public static Rect PropScreenMH(float left, float top, float width, float height, Vector2 last)
+        {
+            Rect r = PropScreen(new Rect((float)(left / (last.x - Margin * 2)), (float)(top / (last.y - Margin * 2)), width, height));
+            r.height -= (Sys("Menu.Height") + Sys("OkButton.Height"));
+
+            return r;
+        }
+
+        public static Rect InsideRect(Rect rect)
+        {
+            return new Rect(Margin, Margin, rect.width - Margin * 2, rect.height - Margin * 2);
+        }
+
+        public static Rect InsideRect(Rect rect, int height)
+        {
+            return new Rect(Margin, Margin, rect.width - Margin * 2, height);
+        }
+
+        public static Rect InsideRect(Rect rect, Rect padding)
+        {
+            return new Rect(rect.x + padding.x, rect.y + padding.x, rect.width - padding.width * 2, rect.height - padding.height * 2);
+        }
+
+        public static int PropPx(int px)
+        {
+            return (int)(px * (1f + (Screen.width / BaseWidth - 1f) * PropRatio));
+        }
+
+        public static Rect PropRect(int px)
+        {
+            return new Rect(PropPx(px), PropPx(px), PropPx(px), PropPx(px));
+        }
+        #endregion
+
     }
 
 }
