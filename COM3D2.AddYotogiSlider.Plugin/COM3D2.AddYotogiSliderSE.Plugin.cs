@@ -1136,6 +1136,9 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
 
             if (bNormalYotogiScene || bCompatibilityYotogiScene)
             {
+                bSyncMotionSpeed = false;
+                bFadeInWait = true;
+
                 StartCoroutine(initCoroutine(TimePerInit));
             }
 
@@ -1155,6 +1158,13 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
                 LogDebug("bFadeInWait " + bFadeInWait.ToString());
                 LogDebug("Fade Status " + ((playManagerAsWfScreenChildren != null) ? playManagerAsWfScreenChildren.fade_status.ToString() : "-"));
                 showMaidStatus();
+
+                LogDebug($"bNormalYotogiScene: {bNormalYotogiScene}");
+                LogDebug($"bCompatibilityYotogiScene: {bCompatibilityYotogiScene}");
+                LogDebug($"canStart: {canStart}");
+                LogDebug($"visible: {visible}");
+                LogDebug($"NowPlaying: {pa["WIN.Load"].NowPlaying}");
+                LogDebug($"maid: {maid}");
             }
 
             if (playManagerAsWfScreenChildren != null)
@@ -1984,6 +1994,9 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
 
         private void initOnStartSkill()
         {
+#if DEBUG
+            LogDebug("Starting initialization");
+#endif
             bLoadBoneAnimetion = false;
             bSyncMotionSpeed = true;
             bKupaFuck = false;
@@ -3024,8 +3037,14 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
 
         private IEnumerator getBoneAnimetionCoroutine(float waitTime)
         {
+#if DEBUG
+            LogDebug("getBoneAnimetionCoroutine - start");
+#endif
             yield return new WaitForSeconds(waitTime);
 
+#if DEBUG
+            LogDebug("getBoneAnimetionCoroutine - waiting for maid");
+#endif
             if (!maid) yield break;
 
             this.anm_BO_body001 = maid.body0.GetAnimation();
@@ -3046,7 +3065,9 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
             for (int j = 0; j < i; j++) anm_BO_mbody[j] = go_BO_mbody[j].GetComponent<Animation>();
 
             bLoadBoneAnimetion = true;
-            //LogDebug("BoneAnimetion : {0}", i);
+#if DEBUG
+            LogDebug($"getBoneAnimetionCoroutine - got animation {i}");
+#endif
         }
 
         private TunLevel checkCommandTunLevel(CommonCommandData.Basic cmd)
