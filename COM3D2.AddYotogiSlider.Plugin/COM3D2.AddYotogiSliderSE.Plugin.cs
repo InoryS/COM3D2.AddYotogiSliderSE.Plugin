@@ -56,12 +56,11 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
         private bool bNormalYotogiScene = false;
         private bool bCompatibilityYotogiScene = false;
         private bool bInitCompleted = false;
-        private bool bFadeInWait = false;
         private bool bLoadBoneAnimetion = false;
         private bool bSyncMotionSpeed = false;
         private bool bCursorOnWindow = false;
         private float fPassedTimeOnLevel = 0f;
-        private bool canStart { get { return bInitCompleted && bLoadBoneAnimetion && !bFadeInWait; } }
+        private bool canStart { get { return bInitCompleted && bLoadBoneAnimetion; } }
         private bool kagScriptCallbacksOverride = false;
 
         private string[] sKey = { "WIN", "STATUS", "AHE", "BOTE", "FACEBLEND", "FACEANIME" };
@@ -237,10 +236,6 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
 
         private Animation anm_BO_body001;
         private Animation[] anm_BO_mbody;
-
-#if DEBUG
-        private WfScreenChildren.FadeStatus lastFadeStatus;
-#endif
 
         #endregion
 
@@ -1193,8 +1188,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
                 LogDebug("canStart " + canStart.ToString());
                 LogDebug("bInitCompleted " + bInitCompleted.ToString());
                 LogDebug("bLoadBoneAnimetion " + bLoadBoneAnimetion.ToString());
-                LogDebug("bFadeInWait " + bFadeInWait.ToString());
-                LogDebug("Fade Status " + ((playManagerAsWfScreenChildren != null) ? playManagerAsWfScreenChildren.fade_status.ToString() : "-"));
+
                 showMaidStatus();
 
                 LogDebug($"bNormalYotogiScene: {bNormalYotogiScene}");
@@ -1205,15 +1199,6 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
                 LogDebug($"maid: {maid}");
             }
 
-            if (playManagerAsWfScreenChildren != null)
-            {
-                WfScreenChildren.FadeStatus curFadeStatus = playManagerAsWfScreenChildren.fade_status;
-                if (curFadeStatus != lastFadeStatus)
-                {
-                    LogDebug("FadeStatus changed: " + curFadeStatus.ToString());
-                }
-                lastFadeStatus = curFadeStatus;
-            }
 #endif
             fPassedTimeOnLevel += Time.deltaTime;
 
@@ -2133,7 +2118,6 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
                 bLoadBoneAnimetion = false;
                 bSyncMotionSpeed = false;
                 fPassedTimeOnCommand = -1f;
-                bFadeInWait = false;
 
                 iLastExcite = 0;
                 iOrgasmCount = 0;
@@ -3326,15 +3310,6 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
         #endregion
 
         #region Utility methods
-
-        internal static IEnumerator CheckFadeStatus(WfScreenChildren wsc, float waitTime)
-        {
-            while (true)
-            {
-                LogDebug(wsc.fade_status.ToString());
-                yield return new WaitForSeconds(waitTime);
-            }
-        }
 
         internal static string GetFullPath(GameObject go)
         {
