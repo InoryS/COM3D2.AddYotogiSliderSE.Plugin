@@ -1,6 +1,4 @@
-﻿// コンパイル用コマンド
-// C:\Windows\Microsoft.NET\Framework\v3.5\csc /t:library /lib:.\Libs /r:UnityEngine.dll /r:UnityEngine.UI.dll /r:UnityInjector.dll /r:Assembly-CSharp.dll /r:Assembly-CSharp-firstpass.dll /r:ExIni.dll COM3D2.AddYotogiSliderSE.Plugin.cs
-
+﻿
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -8,8 +6,10 @@ using System.Linq;
 using System.IO;
 using System.Reflection;
 using UnityEngine;
-using UnityInjector;
-using UnityInjector.Attributes;
+using BepInEx;
+using BepInEx.Configuration;
+using BepInEx.Logging;
+using HarmonyLib;
 
 using UnityObsoleteGui;
 using PV = UnityObsoleteGui.PixelValuesCM3D2;
@@ -17,25 +17,17 @@ using Yotogis;
 
 namespace COM3D2.AddYotogiSliderSE.Plugin
 {
-
-    [PluginFilter("COM3D2x64")]
-    [PluginFilter("COM3D2VRx64")]
-    [PluginFilter("COM3D2OHx64")]
-    [PluginFilter("COM3D2OHVRx64")]
-    [PluginName(AddYotogiSliderSE.PluginName)]
-    [PluginVersion(AddYotogiSliderSE.Version)]
-    public class AddYotogiSliderSE : PluginBase
+    [BepInPlugin(AddYotogiSliderSE.Uuid, AddYotogiSliderSE.PluginName, AddYotogiSliderSE.Version)]
+    public class AddYotogiSliderSE : BaseUnityPlugin
     {
         #region Constants
 
+        public const string Uuid = "com3d2.AddYotogiSliderSE";
         public const string PluginName = "AddYotogiSliderSE";
         public const string Version = "0.0.1.6";
 
-        private readonly float TimePerInit = 1.00f;
         private readonly float TimePerUpdateSpeed = 0.33f;
-        private readonly float WaitFirstInit = 5.00f;
         private readonly float WaitBoneLoad = 1.00f;
-        private readonly string commandUnitName = "/UI Root/YotogiPlayPanel/CommandViewer/SkillViewer/MaskGroup/SkillGroup/CommandParent/CommandUnit";
         private const string LogLabel = AddYotogiSliderSE.PluginName + " : ";
 
         public enum TunLevel
@@ -236,7 +228,6 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
         private WfScreenChildren playManagerAsWfScreenChildren;
 
         private YorogiParamBasicBarDelegator yotogiParamBasicBarDelegator;
-        private GameObject goCommandUnit;
         private Action<Skill.Data.Command.Data> orgOnClickCommand;
         private Action<Skill.Old.Data.Command.Data> orgOnClickCommandOld;
 
@@ -1085,9 +1076,22 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
         #endregion
 
         #region MonoBehaviour methods
+        
+        internal static AddYotogiSliderSE Instance
+        {
+            get;
+            private set;
+        }
 
         public void Awake()
         {
+            if(Instance != null)
+            {
+                throw new Exception("Already initialized");
+            }
+
+            Instance = this;
+
             try
             {
                 DontDestroyOnLoad(this);
@@ -1120,7 +1124,49 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
                 LogError(e);
                 Destroy(this);
             }
+
+            var harmony = new Harmony(Uuid);
+            harmony.PatchAll(typeof(AddYotogiSliderSE));
         }
+
+        [HarmonyPostfix]
+        [HarmonyPatch(typeof(WfScreenManager), "RunScreen")]
+        public static void YotogiManager_RunScreen(string screen_name, object __instance)
+        {
+            if (__instance is YotogiManager || __instance is YotogiOldManager)
+            {
+                LogDebug($"YotogiManager_RunScreen({screen_name})");
+                Instance.OnRunScreen(screen_name);
+
+            }
+        }
+
+        void OnRunScreen(string screen_name)
+        {
+            try
+            {
+                switch (screen_name)
+                {
+                    case "Play":
+                        {
+                            Instance.initOnStartSkill();
+                        }
+                        break;
+                    case "Null":
+                        {
+                            Instance.preFinalize();
+                        }
+                        break;
+
+                }
+
+            }
+            catch(Exception e)
+            {
+                Logger.LogError(e);
+            }
+        }
+
 
         //Overwrite for Level that is loaded.
         //Level 14 is for Yotogi in Normal Mode
@@ -1133,14 +1179,6 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
 
             bNormalYotogiScene = (level == 14);
             bCompatibilityYotogiScene = (level == 63);
-
-            if (bNormalYotogiScene || bCompatibilityYotogiScene)
-            {
-                bSyncMotionSpeed = false;
-                bFadeInWait = true;
-
-                StartCoroutine(initCoroutine(TimePerInit));
-            }
 
             sceneLevel = level;
         }
@@ -1183,62 +1221,18 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
             {
                 if (bNormalYotogiScene || bCompatibilityYotogiScene)
                 {
-                    switch (playManagerAsWfScreenChildren.fade_status)
+                    if (canStart)
                     {
+                        if (Input.GetKeyDown(_toggleKey))
+                        {
+                            winAnimeRect = window.Rectangle;
+                            visible = !visible;
+                            playAnimeOnInputKeyDown();
+                        }
 
-                        case WfScreenChildren.FadeStatus.Null:
-                            {
-                                this.maid = GameMain.Instance.CharacterMgr.GetMaid(0);
-                                if (!this.maid) return;
-                                this.updateMaidEyePosY(fAheDefEye);
+                        if (fPassedTimeOnCommand >= 0f) fPassedTimeOnCommand += Time.deltaTime;
 
-                                this.maid.ResetProp("Hara", true);
-                                updateSlider("Slider:Hara", iDefHara);
-                                if (bBokkiChikubiAvailable)
-                                {
-                                    this.updateShapeKeyChikubiBokkiValue(iDefChikubiNae);
-                                    this.updateShapeKeyChikubiTareValue(iDefChikubiTare);
-                                }
-
-                                LogDebug("Pre-finalization complete.");
-                                finalize();
-                            }
-                            break;
-
-                        case WfScreenChildren.FadeStatus.FadeInWait:
-                            {
-                                if (!bFadeInWait)
-                                {
-                                    bSyncMotionSpeed = false;
-                                    bFadeInWait = true;
-                                }
-                            }
-                            break;
-
-                        case WfScreenChildren.FadeStatus.Wait:
-                            {
-                                if (bFadeInWait)
-                                {
-                                    initOnStartSkill();
-                                    bFadeInWait = false;
-                                }
-                                else if (canStart)
-                                {
-                                    if (Input.GetKeyDown(_toggleKey))
-                                    {
-                                        winAnimeRect = window.Rectangle;
-                                        visible = !visible;
-                                        playAnimeOnInputKeyDown();
-                                    }
-
-                                    if (fPassedTimeOnCommand >= 0f) fPassedTimeOnCommand += Time.deltaTime;
-
-                                    updateAnimeOnUpdate();
-                                }
-                            }
-                            break;
-
-                        default: break;
+                        updateAnimeOnUpdate();
                     }
                 }
                 else
@@ -1526,32 +1520,9 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
         #endregion
 
         #region Private methods
-
-        private IEnumerator initCoroutine(float waitTime)
-        {
-            yield return new WaitForSeconds(WaitFirstInit);
-            while (!(bInitCompleted = initPlugin()))
-            {
-                if (bNormalYotogiScene || bCompatibilityYotogiScene)
-                {
-                    yield return new WaitForSeconds(waitTime);
-                }
-                else
-                {
-                    LogInfo("Initialization canceled.");
-                    yield break;
-                }
-            }
-            LogInfo("Initialization complete.");
-        }
-
         private bool initPlugin()
         {
-            if (!this.goCommandUnit) this.goCommandUnit = GameObject.Find(commandUnitName);
-            if (!IsActive(this.goCommandUnit)) return false; // 夜伽コマンド画面かどうか
-
             this.maid = GameMain.Instance.CharacterMgr.GetMaid(0);
-            if (!this.maid) return false;
 
             this.maidFoceKuchipakuSelfUpdateTime = getFieldInfo<Maid>("m_bFoceKuchipakuSelfUpdateTime");
             if (IsNull(this.maidFoceKuchipakuSelfUpdateTime)) return false;
@@ -1997,6 +1968,12 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
 #if DEBUG
             LogDebug("Starting initialization");
 #endif
+            if (!bInitCompleted)
+            {
+                initPlugin();
+                bInitCompleted = true;
+            }
+
             bLoadBoneAnimetion = false;
             bSyncMotionSpeed = true;
             bKupaFuck = false;
@@ -2114,6 +2091,26 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
 //            }
         }
 
+        private void preFinalize()
+        {
+            if (!bInitCompleted) return;
+
+            this.maid = GameMain.Instance.CharacterMgr.GetMaid(0);
+            if (!this.maid) return;
+            this.updateMaidEyePosY(fAheDefEye);
+
+            this.maid.ResetProp("Hara", true);
+            updateSlider("Slider:Hara", iDefHara);
+            if (bBokkiChikubiAvailable)
+            {
+                this.updateShapeKeyChikubiBokkiValue(iDefChikubiNae);
+                this.updateShapeKeyChikubiTareValue(iDefChikubiTare);
+            }
+
+            LogDebug("Pre-finalization complete.");
+            finalize();
+        }
+
         private void finalize()
         {
             try
@@ -2150,7 +2147,6 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
                 bKupaFuck = false;
                 bAnalKupaFuck = false;
 
-                goCommandUnit = null;
                 maid = null;
                 //maidStatusInfo = null;
                 maidFoceKuchipakuSelfUpdateTime = null;
@@ -3248,67 +3244,42 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
 
         private void clearExIniComments()
         {
-            Preferences.Comments.Comments.Clear();
-            foreach (ExIni.IniSection section in Preferences.Sections)
+        }
+
+        readonly Dictionary<string, object> ExIni = new Dictionary<string, object>();
+        private ConfigEntry<T> getIniEntry<T>(string section, string key, T def)
+        {
+            var iniKey = $"{section}.{key}";
+            if (!ExIni.ContainsKey(iniKey))
             {
-                section.Comments.Comments.Clear();
-                foreach (ExIni.IniKey key in section.Keys)
-                {
-                    key.Comments.Comments.Clear();
-                }
+                ExIni[iniKey] = Config.Bind<T>(section, key, def);
             }
+
+            return ExIni[iniKey] as ConfigEntry<T>;
         }
 
         private T parseExIni<T>(string section, string key, T def)
         {
-            T res = def;
-            string str = parseExIniRaw(section, key, null);
-            if (str != null)
-            {
-                var converter = System.ComponentModel.TypeDescriptor.GetConverter(typeof(T));
-                if (converter == null)
-                {
-                    LogError("Ini: Invalid type: [{0}] {1} ({2})", section, key, typeof(T));
-                }
-                else
-                {
-                    try
-                    {
-                        res = (T)converter.ConvertFromString(str);
-                    }
-                    catch (Exception ex)
-                    {
-                        LogWarning("Ini: Convert failed: [{0}] {1}='{2}' ({3})", section, key, str, ex);
-                    }
-                }
-            }
+            var entry = getIniEntry(section, key, def);
+            var res = entry.Value;
             LogDebug("Ini: [{0}] {1}='{2}'", section, key, res);
             return res;
         }
 
-        private string parseExIniRaw(string section, string key, string def)
-        {
-            if (Preferences.HasSection(section))
-            {
-                if (Preferences[section].HasKey(key))
-                {
-                    return Preferences[section][key].Value;
-                }
-            }
-            return def;
-        }
-
         private void setExIni<T>(string section, string key, T value)
         {
-            var converter = System.ComponentModel.TypeDescriptor.GetConverter(typeof(T));
-            if (converter != null)
-            {
-                try
-                {
-                    Preferences[section][key].Value = converter.ConvertToString(value);
-                }
-                catch (NotSupportedException) { /* nothing */ }
-            }
+            var entry = getIniEntry(section, key, value);
+            entry.Value = value;
+        }
+
+        private void SaveConfig()
+        {
+
+        }
+
+        private void ReloadConfig()
+        {
+
         }
 
         [System.Diagnostics.Conditional("DEBUG")]
@@ -3324,20 +3295,22 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
             }
         }
 
+        private static ManualLogSource Log => Instance.Logger;
+
         [System.Diagnostics.Conditional("DEBUG")]
         private static void LogDebug(string msg, params object[] args)
         {
-            Debug.Log(LogLabel + string.Format(msg, args));
+            Log.LogDebug(string.Format(msg, args));
         }
 
         private static void LogWarning(string msg, params object[] args)
         {
-            Debug.LogWarning(LogLabel + string.Format(msg, args));
+            Log.LogWarning(string.Format(msg, args));
         }
 
         private static void LogError(string msg, params object[] args)
         {
-            Debug.LogError(LogLabel + string.Format(msg, args));
+            Log.LogError(string.Format(msg, args));
         }
 
         private static void LogError(object ex)
@@ -3347,7 +3320,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
 
         private static void LogInfo(string msg, params object[] args)
         {
-            Console.WriteLine(LogLabel + string.Format(msg, args));
+            Log.LogInfo(string.Format(msg, args));
         }
 
         #endregion
