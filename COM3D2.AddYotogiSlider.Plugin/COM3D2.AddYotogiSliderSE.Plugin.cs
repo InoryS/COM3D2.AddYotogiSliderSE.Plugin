@@ -1122,6 +1122,8 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
 
             var harmony = new Harmony(Uuid);
             harmony.PatchAll(typeof(AddYotogiSliderSE));
+
+            OldConfigCheck();
         }
 
         [HarmonyPostfix]
@@ -1176,6 +1178,8 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
             bCompatibilityYotogiScene = (level == 63);
 
             sceneLevel = level;
+
+            SybarisCheck();
         }
 
         public void Update()
@@ -1632,14 +1636,24 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
             }
 
             // BodyShapeKeyCheck
-            bKupaAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("kupa");
-            bOrgasmAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("orgasm");
-            bAnalKupaAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("analkupa");
-            bLabiaKupaAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("labiakupa");
-            bVaginaKupaAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("vaginakupa");
-            bNyodoKupaAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("nyodokupa");
-            bSujiAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("suji");
-            bClitorisAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("clitoris");
+            if (IsInOutMorpherEnabled())
+            {
+                LogWarning("InOutAnimation is detected and morpher is enabled. AutoKUPA disabled");
+                bKupaAvailable = false;
+                bAnalKupaAvailable = false;
+            }
+            else
+            {
+                bKupaAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("kupa");
+                bOrgasmAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("orgasm");
+                bAnalKupaAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("analkupa");
+                bLabiaKupaAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("labiakupa");
+                bVaginaKupaAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("vaginakupa");
+                bNyodoKupaAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("nyodokupa");
+                bSujiAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("suji");
+                bClitorisAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("clitoris");
+
+            }
 
             // BokkiChikubi ShapeKeyCheck
             bBokkiChikubiAvailable = this.isExistVertexMorph(maid.body0, "chikubi_bokki");
@@ -3394,6 +3408,78 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
             if (field == null) return default(TResult);
 
             return (TResult)field.GetValue(inst);
+        }
+
+        #endregion
+
+        #region Compatibility methods
+
+        private void OldConfigCheck()
+        {
+            var oldConfigPath = Path.Combine(Paths.GameRootPath, "Sybaris\\UnityInjector\\Config\\AddYotogiSliderSE.ini");
+            if (File.Exists(oldConfigPath))
+            {
+                Logger.LogWarning($"Detected old sybaris configuration at [{oldConfigPath}]. Make sure to migrate your configuration to the new configuration path. See plugin README.md for details.");
+                this.transitionalConfigFile = new ConfigFile(oldConfigPath, false);
+            }
+        }
+
+        private void SybarisCheck()
+        {
+            var injector = GameObject.Find("UnityInjector");
+            var component = injector?.GetComponent("AddYotogiSliderSE");
+
+            if (component != null)
+            {
+                var assemblyLocation = component.GetType().Assembly.Location;
+                Logger.LogWarning($"Detected old sybaris plugin at [{assemblyLocation}]. Disabling this plugin but you are advised to uninstall this properly. See plugin README.md for details.");
+                GameObject.Destroy(component);
+            }
+        }
+
+        private ConfigFile transitionalConfigFile;
+
+        new ConfigFile Config
+        {
+            get => transitionalConfigFile ?? base.Config;
+        }
+
+        private bool IsInOutMorpherEnabled()
+        {
+            Type IOSettingsClass;
+            try
+            {
+                IOSettingsClass = AccessTools.TypeByName("COM3D2.InOutAnimation.Plugin.InOutAnimation+Settings");
+            }
+            catch (Exception e)
+            {
+                return false;
+            }
+
+            if(IOSettingsClass is null)
+            {
+                return false;
+            }
+
+            var instanceProp = AccessTools.Property(IOSettingsClass, "Instance");
+            if(instanceProp is null)
+            {
+                throw new Exception($"Cannot get Instance property of {IOSettingsClass}");
+            }
+
+            
+            var enableMorpherField = AccessTools.Field(IOSettingsClass, "enableMorpher");
+            if (enableMorpherField is null)
+            {
+                throw new Exception($"Cannot get enableMorpher field of {IOSettingsClass}");
+            }
+
+            var ioSettings = instanceProp.GetValue(null, null);
+            var enableMorpher = enableMorpherField.GetValue(ioSettings);
+
+            Logger.LogDebug($"InOutAnimation plugin detected. morpherEnabled is: {enableMorpher}");
+
+            return (bool)enableMorpher;
         }
 
         #endregion
