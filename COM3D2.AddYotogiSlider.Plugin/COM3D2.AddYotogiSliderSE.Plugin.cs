@@ -709,6 +709,9 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
 
             public event EventHandler<ButtonEventArgs> OnClick;
 
+            readonly string[] cheekBlendOptions = { "頬０", "頬１", "頬２", "頬３" };
+            readonly string[] tearBlendOptions = { "涙０", "涙１", "涙２", "涙３" };
+
             public YotogiButtonGrid(string name, string[] buttonNames, EventHandler<ButtonEventArgs> _onClick, int row, bool tabEnabled)
             : base(name, new Rect(Window.AutoLayout, Window.AutoLayout, Window.AutoLayout, 0))
             {
@@ -721,8 +724,8 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
                 if (tabEnabled)
                 {
                     selectButton = new SelectButton[2]
-                        { new SelectButton("SelectButton:Cheek", rect, new string[4]{"頬０", "頬１", "頬２", "頬３"}, this.OnSelectButtonFaceBlend),
-                          new SelectButton("SelectButton:Tear",  rect, new string[4]{"涙０", "涙１", "涙２", "涙３"}, this.OnSelectButtonFaceBlend)};
+                        { new SelectButton("SelectButton:Cheek", rect, cheekBlendOptions, this.OnSelectButtonFaceBlend),
+                          new SelectButton("SelectButton:Tear",  rect, tearBlendOptions, this.OnSelectButtonFaceBlend)};
                     onChangeTab(0);
                 }
 
@@ -770,7 +773,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
                             int row = 1, col = 1;
 
                             foreach (string buttonName in buttonNames)
-                            {
+                            { 
                                 onClick(GUI.Button(scrlCur, buttonName), buttonName);
 
                                 if (columns > 0 && col == columns)
@@ -816,18 +819,25 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
                 if (!broadCast) notifyParent(true, false);
             }
 
+            string SelectedFaceBlend
+            {
+                get
+                {
+                    var cheekName = cheekBlendOptions[selectButton[0].SelectedIndex];
+                    var tearName = tearBlendOptions[selectButton[1].SelectedIndex];
+
+                    var faceName = $"{cheekName}{tearName}";
+                    if (GirdToggle) faceName += "よだれ";
+                    return faceName;
+                }
+            }
+
             public void OnSelectButtonFaceBlend(object sb, SelectEventArgs args)
             {
                 if (((YotogiPanel)Parent).Enabled)
                 {
-                    string senderName = args.Name;
-                    string faceName = args.ButtonName;
-
-                    if (senderName == "SelectButton:Cheek") faceName = faceName + selectButton[1].Value;
-                    else if (senderName == "SelectButton:Tear") faceName = selectButton[0].Value + faceName;
-                    if (GirdToggle) faceName += "よだれ";
-
-                    OnClick(this, new ButtonEventArgs(this.name, faceName));
+                    LogDebug($"FaceBlend: {this.SelectedFaceBlend}");
+                    OnClick(this, new ButtonEventArgs(this.name, this.SelectedFaceBlend));
                 }
             }
 
@@ -835,9 +845,9 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
             {
                 if (b != GirdToggle)
                 {
-                    string faceName = selectButton[0].Value + selectButton[1].Value + (b ? "よだれ" : "");
-                    OnClick(this, new ButtonEventArgs(this.name, faceName));
                     GirdToggle = b;
+                    LogDebug($"FaceBlend: {this.SelectedFaceBlend}");
+                    OnClick(this, new ButtonEventArgs(this.name, this.SelectedFaceBlend));
                 }
             }
 
@@ -852,7 +862,11 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
 
             private void onClick(bool click, string s)
             {
-                if (click) OnClick(this, new ButtonEventArgs(this.name, s));
+                if (click)
+                {
+                    LogDebug($"FaceAnime: {s}");
+                    OnClick(this, new ButtonEventArgs(this.name, s));
+                }
             }
 
             private Color toggleColor(bool b) { return b ? new Color(1f, 1f, 1f, 1f) : new Color(1f, 0.2f, 0.2f, 1f); }
@@ -3938,7 +3952,7 @@ namespace UnityObsoleteGui
 
         public SelectButton(string name, Rect rect, string[] buttonNames, EventHandler<SelectEventArgs> _onSelect) : base(name, rect)
         {
-            this.buttonNames = buttonNames;
+            this.buttonNames = buttonNames.Clone() as string[];
             this.OnSelect += _onSelect;
         }
 
@@ -3951,8 +3965,8 @@ namespace UnityObsoleteGui
         {
             if (selected != newSelected)
             {
-                OnSelect(this, new SelectEventArgs(name, newSelected, buttonNames[newSelected]));
                 selected = newSelected;
+                OnSelect(this, new SelectEventArgs(name, newSelected, buttonNames[newSelected]));
             }
         }
     }
