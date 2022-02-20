@@ -441,9 +441,9 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
 
             private Rect padding { get { return PV.PropRect(paddingPx); } }
             private int paddingPx = 4;
-            private GUIStyle labelStyle = "label";
-            private GUIStyle toggleStyle = "toggle";
-            private GUIStyle buttonStyle = "button";
+            private GUIStyle labelStyle = new GUIStyle("label");
+            private GUIStyle toggleStyle = new GUIStyle("toggle");
+            private GUIStyle buttonStyle = new GUIStyle("button");
             private string headerHeightPV = "C1";
             private string headerFontSizePV = "C1";
             private HeaderUI headerUI;
@@ -580,7 +580,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
             private HSlider slider;
             private string lineHeightPV = "C1";
             private string fontSizePV = "C1";
-            private GUIStyle labelStyle = "label";
+            private GUIStyle labelStyle = new GUIStyle("label");
             private string labelText = "";
             private bool pinEnabled = false;
 
@@ -636,10 +636,8 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
 
         private class YotogiToggle : Element
         {
-            private bool val;
             private Toggle toggle;
-            private GUIStyle labelStyle = "label";
-            private GUIStyle toggleStyle = "toggle";
+            private GUIStyle labelStyle = new GUIStyle("label");
             private string lineHeightPV = "C1";
             private string fontSizePV = "C1";
 
@@ -654,7 +652,6 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
             : base(name, new Rect(Window.AutoLayout, Window.AutoLayout, Window.AutoLayout, 0))
             {
                 this.toggle = new Toggle(name + ":toggle", rect, def, text, onChange);
-                this.val = def;
                 this.LabelText = text;
                 Resize();
             }
@@ -689,9 +686,8 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
         private class YotogiButtonGrid : Element
         {
             private string[] buttonNames;
-            private GUIStyle labelStyle = "box";
-            private GUIStyle toggleStyle = "toggle";
-            private GUIStyle buttonStyle = "button";
+            private GUIStyle toggleStyle = new GUIStyle("toggle");
+            private GUIStyle buttonStyle = new GUIStyle("button");
             private string lineHeightPV = "C1";
             private string fontSizePV = "C1";
             private int viewRow = 6;
@@ -874,11 +870,10 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
 
         private class YotogiLineSelect : Element
         {
-            private string label;
             private string[] names;
             private int currentIndex = 0;
-            private GUIStyle labelStyle = "label";
-            private GUIStyle buttonStyle = "button";
+            private GUIStyle labelStyle = new GUIStyle("label");
+            private GUIStyle buttonStyle = new GUIStyle("button");
             private string heightPV = "C1";
             private string fontSizePV = "C1";
 
@@ -890,7 +885,6 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
             public YotogiLineSelect(string name, string _label, string[] _names, int def, EventHandler<ButtonEventArgs> _onClick)
             : base(name, new Rect(Window.AutoLayout, Window.AutoLayout, Window.AutoLayout, 0))
             {
-                this.label = _label;
                 this.names = new string[_names.Length];
                 Array.Copy(_names, this.names, _names.Length);
                 this.currentIndex = def;
@@ -2776,7 +2770,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
             winAnimeRect.x = x[0];
             GUI.color = new Color(GUI.color.r, GUI.color.g, GUI.color.b, x[1]);
 
-            GUIStyle winStyle = "box";
+            GUIStyle winStyle = new GUIStyle("box");
             winStyle.fontSize = PV.Font("C1");
             winStyle.alignment = TextAnchor.UpperRight;
             winAnimeRect = GUI.Window(0, winAnimeRect, dummyWin, AddYotogiSliderSE.Version, winStyle);
@@ -3467,6 +3461,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
             }
             catch (Exception e)
             {
+                Logger.LogDebug(e);
                 return false;
             }
 
@@ -3690,8 +3685,8 @@ namespace UnityObsoleteGui
         private Vector2 lastScreenSize;
         private int colums = 1;
 
-        public GUIStyle WindowStyle = "window";
-        public GUIStyle LabelStyle = "label";
+        public GUIStyle WindowStyle = new GUIStyle("window");
+        public GUIStyle LabelStyle = new GUIStyle("label");
         public string HeaderText;
         public int HeaderFontSize;
         public string TitleText;
@@ -3876,8 +3871,8 @@ namespace UnityObsoleteGui
 
     public class HSlider : Element
     {
-        public GUIStyle Style = "horizontalSlider";
-        public GUIStyle ThumbStyle = "horizontalSliderThumb";
+        public GUIStyle Style = new GUIStyle("horizontalSlider");
+        public GUIStyle ThumbStyle = new GUIStyle("horizontalSliderThumb");
         public float Value;
         public float Min;
         public float Max;
@@ -3911,7 +3906,7 @@ namespace UnityObsoleteGui
     {
         private bool val;
 
-        public GUIStyle Style = "toggle";
+        public GUIStyle Style = new GUIStyle("toggle");
         public GUIContent Content;
         public bool Value { get { return val; } set { val = value; } }
         public string Text { get { return Content.text; } set { Content.text = value; } }
