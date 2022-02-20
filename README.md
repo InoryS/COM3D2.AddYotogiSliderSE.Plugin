@@ -1,14 +1,11 @@
-# AddYotogiSlider for COM3D2
+# AddYotogiSliderSE2 for COM3D2
 
-This is the YotogiSlider for COM3D2. Version 0.1.2.0
+A Fork of AddYotogiSliderSE which is itself a JP fork of AddYotogiSlider by asyetriec which is itself a fork of another plugin... maybe?
 
-This only works with COM3D2. This does not work with CM3D2.
+This is a **BepInEx** plugin, and only works with COM3D2.
 
-### [Download the latest release](https://github.com/asyetriec/COM3D2.AddYotogiSlider.Plugin/releases)
+### [Download the latest release](https://github.com/Vin-meido/COM3D2.AddYotogiSliderSE.Plugin/releases)
 
-### Credits
-To denikson
+# Installation
 
-To texel-sensei
-
-For sample plugin codes 
+Put the plugin dll inside your `BepInEx/plugins/` folder. If you were using the Sybaris version of the plugin, remove/uninstall it.

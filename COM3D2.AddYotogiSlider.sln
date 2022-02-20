@@ -4,6 +4,10 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 16.0.31410.357
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{5CF56372-DE84-44D0-86B3-D1049E062E4C}"
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+		README_JP.txt = README_JP.txt
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "COM3D2.AddYotogiSliderSE.Plugin", "COM3D2.AddYotogiSlider.Plugin\COM3D2.AddYotogiSliderSE.Plugin.csproj", "{1FC36783-AE2B-46EF-93FB-D199509F50DA}"
 EndProject
