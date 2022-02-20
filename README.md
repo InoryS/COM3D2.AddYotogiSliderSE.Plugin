@@ -9,3 +9,5 @@ This is a **BepInEx** plugin, and only works with COM3D2.
 # Installation
 
 Put the plugin dll inside your `BepInEx/plugins/` folder. If you were using the Sybaris version of the plugin, remove/uninstall it.
+
+If you have IMGUITranslationLoader installed, make a copy of `com3d2.addyotogisliderse.plugin.txt` and name it `com3d2.addyotogisliderse2.plugin.txt` inside the `IMGUITranslationLoader\IMGUIStrings` folder.
