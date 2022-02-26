@@ -1,15 +1,17 @@
 ﻿using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("COM3D2.AddYotogiSlider.Plugin")]
-[assembly: AssemblyDescription("COM3D2.AddYotogiSlider.Plugin")]
+[assembly: AssemblyTitle("COM3D2.AddYotogiSliderSE.Plugin")]
+[assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("Asyetriec")]
-[assembly: AssemblyProduct("COM3D2.AddYotogiSlider.Plugin")]
-[assembly: AssemblyTrademark("Asyetriec")]
+[assembly: AssemblyCompany("")]
+[assembly: AssemblyProduct("COM3D2.AddYotogiSliderSE.Plugin")]
+[assembly: AssemblyCopyright("Copyright ©  2022")]
+[assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
 // Setting ComVisible to false makes the types in this assembly not visible
@@ -18,7 +20,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-//[assembly: Guid("1fc36783-ae2b-46ef-93fb-d199509f50da")]
+[assembly: Guid("e8612c1c-6603-458b-955c-05c93b78845d")]
 
 // Version information for an assembly consists of the following four values:
 //

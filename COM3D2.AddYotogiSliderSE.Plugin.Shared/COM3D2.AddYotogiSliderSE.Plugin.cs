@@ -24,7 +24,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
 
         public const string Uuid = "com3d2.AddYotogiSliderSE2";
         public const string PluginName = "AddYotogiSliderSE2";
-        public const string Version = "1.0.0.0";
+        public const string Version = "1.0.0.1";
 
         private readonly float TimePerUpdateSpeed = 0.33f;
         private readonly float WaitBoneLoad = 1.00f;
