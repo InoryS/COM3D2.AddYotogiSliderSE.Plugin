@@ -20,7 +20,7 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;COM3D25</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
@@ -28,7 +28,7 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
+    <DefineConstants>TRACE;COM3D25</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
@@ -79,4 +79,11 @@
     </PropertyGroup>
     <Error Condition="!Exists('..\packages\BepInEx.Core.5.4.19\build\BepInEx.Core.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\BepInEx.Core.5.4.19\build\BepInEx.Core.targets'))" />
   </Target>
+  <PropertyGroup>
+    <PostBuildEvent>copy "$(TargetPath)" "F:\COM3D2JP\COM3D2_5\BepinEx\plugins"
+cd $(OutDir)
+mkdir BepinEx\Plugins\
+copy $(TargetPath) BepinEx\Plugins\
+tar -cvaf COM3D2.5.AddYotogiSliderSE2.Plugin.zip BepinEx</PostBuildEvent>
+  </PropertyGroup>
 </Project>

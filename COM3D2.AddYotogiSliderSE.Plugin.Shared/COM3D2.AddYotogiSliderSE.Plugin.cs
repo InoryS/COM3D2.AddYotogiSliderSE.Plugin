@@ -17,14 +17,38 @@ using Yotogis;
 
 namespace COM3D2.AddYotogiSliderSE.Plugin
 {
+    public static class VERSION
+    {
+        public const string NUMBER = "1.0.0.3";
+
+#if DEBUG
+        public const string RELEASE_TYPE = "debug";
+#else
+        public const string RELEASE_TYPE = "release";
+#endif
+
+#if COM3D25
+        public const string VARIAN = "cr";
+#else
+        public const string VARIAN = "standard";
+#endif
+
+    }
+
+
     [BepInPlugin(AddYotogiSliderSE.Uuid, AddYotogiSliderSE.PluginName, AddYotogiSliderSE.Version)]
     public class AddYotogiSliderSE : BaseUnityPlugin
     {
-        #region Constants
+#region Constants
 
-        public const string Uuid = "com3d2.AddYotogiSliderSE2";
+#if COM3D25
+        public const string Uuid = "COM3D2.AddYotogiSliderSE2";
+        public const string PluginName = "AddYotogiSliderSE2-cr";
+#else
+        public const string Uuid = "COM3D2.AddYotogiSliderSE2";
         public const string PluginName = "AddYotogiSliderSE2";
-        public const string Version = "1.0.0.1";
+#endif
+        public const string Version = VERSION.NUMBER;
 
         private readonly float TimePerUpdateSpeed = 0.33f;
         private readonly float WaitBoneLoad = 1.00f;
@@ -45,9 +69,9 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
             Vibe = 1,
         }
 
-        #endregion
+#endregion
 
-        #region Variables
+#region Variables
 
         private string _toggleKey = "f5";
 
@@ -237,9 +261,9 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
         private Animation anm_BO_body001;
         private Animation[] anm_BO_mbody;
 
-        #endregion
+#endregion
 
-        #region Nested classes
+#region Nested classes
 
         private static class CompatibilityModeStage
         {
@@ -1076,9 +1100,9 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
             }
         }
 
-        #endregion
+#endregion
 
-        #region MonoBehaviour methods
+#region MonoBehaviour methods
         
         internal static AddYotogiSliderSE Instance
         {
@@ -1132,6 +1156,21 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
             harmony.PatchAll(typeof(AddYotogiSliderSE));
 
             OldConfigCheck();
+        }
+
+        public void Start()
+        {
+#if COM3D25
+            if (!Product.isCREditSystemSupport) {
+                LogError("You are using a build of this plugin that is intended for COM3D2.5, but your game does not support it. Some functionalities of this plugin may fail.");
+            }
+#else
+            if (Product.isCREditSystemSupport)
+            {
+                LogError("You are using a build of this plugin that is intended for COM3D2, but your game seems to be the CR-Edit version (CO. Some functionalities of this plugin may fail.");
+            }
+#endif
+            LogInfo("Plugin started");
         }
 
         [HarmonyPostfix]
@@ -1255,9 +1294,9 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
             }
         }
 
-        #endregion
+#endregion
 
-        #region Callbacks
+#region Callbacks
 
         public void OnYotogiPlayManagerOnClickCommand(Skill.Data.Command.Data command_data)
         {
@@ -1514,9 +1553,9 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
             GameMain.Instance.BgMgr.ChangeBg(args.ButtonName);
         }
 
-        #endregion
+#endregion
 
-        #region Private methods
+#region Private methods
         private bool initPlugin()
         {
             this.maid = GameMain.Instance.CharacterMgr.GetMaid(0);
@@ -3329,9 +3368,9 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
             Log.LogInfo(string.Format(msg, args));
         }
 
-        #endregion
+#endregion
 
-        #region Utility methods
+#region Utility methods
 
         internal static string GetFullPath(GameObject go)
         {
@@ -3418,9 +3457,9 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
             return (TResult)field.GetValue(inst);
         }
 
-        #endregion
+#endregion
 
-        #region Compatibility methods
+#region Compatibility methods
 
         private void OldConfigCheck()
         {
@@ -3491,7 +3530,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
             return (bool)enableMorpher;
         }
 
-        #endregion
+#endregion
     }
 
 }
@@ -3643,7 +3682,7 @@ namespace UnityObsoleteGui
     public class Window : Container
     {
 
-        #region Constants
+#region Constants
         public const float AutoLayout = -1f;
 
         [Flags]
@@ -3654,11 +3693,11 @@ namespace UnityObsoleteGui
             VScroll = 0x02
         }
 
-        #endregion
+#endregion
 
 
 
-        #region Nested classes
+#region Nested classes
 
         private class HorizontalSpacer : Element
         {
@@ -3669,11 +3708,11 @@ namespace UnityObsoleteGui
             }
         }
 
-        #endregion
+#endregion
 
 
 
-        #region Variables
+#region Variables
 
         private Rect sizeRatio;
         private Rect baseRect;
@@ -3694,11 +3733,11 @@ namespace UnityObsoleteGui
         public int TitleFontSize;
         public Scroll scroll = Scroll.None;
 
-        #endregion
+#endregion
 
 
 
-        #region Methods
+#region Methods
 
         public Window(Rect ratio, string header, string title) : this(title, ratio, header, title, null) { }
         public Window(string name, Rect ratio, string header, string title) : this(name, ratio, header, title, null) { }
@@ -3864,7 +3903,7 @@ namespace UnityObsoleteGui
             }
         }
 
-        #endregion
+#endregion
 
     }
 
@@ -4035,7 +4074,7 @@ namespace UnityObsoleteGui
     public static class PixelValuesCM3D2
     {
 
-        #region Variables
+#region Variables
 
         private static int margin = 10;
         private static Dictionary<string, int> font = new Dictionary<string, int>();
@@ -4046,11 +4085,11 @@ namespace UnityObsoleteGui
         public static float PropRatio = 0.6f;
         public static int Margin { get { return PropPx(margin); } set { margin = value; } }
 
-        #endregion
+#endregion
 
 
 
-        #region Methods
+#region Methods
 
         static PixelValuesCM3D2()
         {
@@ -4129,7 +4168,7 @@ namespace UnityObsoleteGui
         {
             return new Rect(PropPx(px), PropPx(px), PropPx(px), PropPx(px));
         }
-        #endregion
+#endregion
 
     }
 

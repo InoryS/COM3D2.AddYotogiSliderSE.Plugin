@@ -65,7 +65,11 @@
   <Import Project="..\COM3D2.AddYotogiSliderSE.Plugin.Shared\COM3D2.AddYotogiSliderSE.Plugin.Shared.projitems" Label="Shared" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>
-    </PostBuildEvent>
+    <PostBuildEvent>copy "$(TargetPath)" "F:\COM-3d2\BepinEx\plugins\"
+cd $(OutDir)
+mkdir BepinEx\Plugins\
+copy $(TargetPath) BepinEx\Plugins\
+tar -cvaf COM3D2.AddYotogiSliderSE2.Plugin.zip BepinEx
+</PostBuildEvent>
   </PropertyGroup>
 </Project>

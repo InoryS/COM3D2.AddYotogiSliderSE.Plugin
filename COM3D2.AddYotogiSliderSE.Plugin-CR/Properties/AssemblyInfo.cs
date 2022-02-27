@@ -1,12 +1,13 @@
 ﻿using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using COM3D2.AddYotogiSliderSE.Plugin;
 
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("COM3D2.AddYotogiSliderSE.Plugin")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyDescription("COM3D2.AddYotogiSliderSE.Plugin CR-Edit build")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("COM3D2.AddYotogiSliderSE.Plugin")]
@@ -32,5 +33,5 @@ using System.Runtime.InteropServices;
 // You can specify all the values or you can default the Build and Revision Numbers
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("1.0.0.1")]
-[assembly: AssemblyFileVersion("1.0.0.1")]
+[assembly: AssemblyVersion(VERSION.NUMBER)]
+[assembly: AssemblyFileVersion(VERSION.NUMBER)]
