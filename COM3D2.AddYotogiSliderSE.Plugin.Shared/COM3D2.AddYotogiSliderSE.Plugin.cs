@@ -1888,8 +1888,8 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
                     slider["MotionSpeed"].Pin = parseExIni("Status", "MotionSpeedPin", false);
                 }
 
-                panel["AutoAHE"].Enabled = parseExIni("AutoAHE", "Enabled", panel["AutoAHE"].Enabled);
-                toggle["Convulsion"].Value = parseExIni("AutoAHE", "ConvulsionEnabled", toggle["Convulsion"].Value);
+                panel["AutoAHE"].Enabled = parseExIni("AutoAHE", "Enabled", false);
+                toggle["Convulsion"].Value = parseExIni("AutoAHE", "ConvulsionEnabled", false);
                 fOrgasmsPerAheLevel = parseExIni("AutoAHE", "OrgasmsPerLevel", fOrgasmsPerAheLevel);
                 fAheEyeDecrement = parseExIni("AutoAHE", "EyeDecrement", fAheEyeDecrement);
                 for (int i = 0; i < 3; i++)
@@ -1906,7 +1906,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
 
                 if (bBokkiChikubiAvailable)
                 {
-                    panel["AutoTUN"].Enabled = parseExIni("AutoTUN", "Enabled", panel["AutoTUN"].Enabled);
+                    panel["AutoTUN"].Enabled = parseExIni("AutoTUN", "Enabled", false);
                 }
                 else
                 {
@@ -1919,14 +1919,14 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
                 iDefChikubiNae = slider["ChikubiNae"].Value;
                 iDefChikubiTare = slider["ChikubiTare"].Value;
 
-                panel["AutoBOTE"].Enabled = parseExIni("AutoBOTE", "Enabled", panel["AutoBOTE"].Enabled);
+                panel["AutoBOTE"].Enabled = parseExIni("AutoBOTE", "Enabled", false);
                 toggle["SlowCreampie"].Value = parseExIni("AutoBOTE", "SlowCreampie", toggle["SlowCreampie"].Value);
                 iHaraIncrement = parseExIni("AutoBOTE", "Increment", iHaraIncrement);
                 iBoteHaraMax = parseExIni("AutoBOTE", "Max", iBoteHaraMax);
 
                 if (bKupaAvailable || bAnalKupaAvailable)
                 {
-                    panel["AutoKUPA"].Enabled = parseExIni("AutoKUPA", "Enabled", panel["AutoKUPA"].Enabled);
+                    panel["AutoKUPA"].Enabled = parseExIni("AutoKUPA", "Enabled", true);
                 }
                 else
                 {
@@ -3457,9 +3457,9 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
             return (TResult)field.GetValue(inst);
         }
 
-#endregion
+        #endregion
 
-#region Compatibility methods
+        #region Compatibility methods
 
         private void OldConfigCheck()
         {
@@ -3515,6 +3515,12 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
                 throw new Exception($"Cannot get Instance property of {IOSettingsClass}");
             }
 
+            var enablePluginField = AccessTools.Field(IOSettingsClass, "enablePlugin");
+            if(enablePluginField is null)
+            {
+                throw new Exception($"Cannot get enablePlugin field of {IOSettingsClass}");
+            }
+
             
             var enableMorpherField = AccessTools.Field(IOSettingsClass, "enableMorpher");
             if (enableMorpherField is null)
@@ -3523,11 +3529,12 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
             }
 
             var ioSettings = instanceProp.GetValue(null, null);
-            var enableMorpher = enableMorpherField.GetValue(ioSettings);
+            var enablePlugin = (bool)enablePluginField.GetValue(ioSettings);
+            var enableMorpher = (bool)enableMorpherField.GetValue(ioSettings);
 
             Logger.LogDebug($"InOutAnimation plugin detected. morpherEnabled is: {enableMorpher}");
 
-            return (bool)enableMorpher;
+            return enablePlugin && enableMorpher;
         }
 
 #endregion
