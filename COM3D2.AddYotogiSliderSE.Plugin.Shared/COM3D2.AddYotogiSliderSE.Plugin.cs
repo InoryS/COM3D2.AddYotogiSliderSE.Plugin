@@ -261,6 +261,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
         private Animation anm_BO_body001;
         private Animation[] anm_BO_mbody;
 
+        private bool isInOutAnimationActive = false;
 #endregion
 
 #region Nested classes
@@ -1227,10 +1228,13 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
             sceneLevel = level;
 
             SybarisCheck();
+            InOutAnimationHook.ReInitialize();
+            CheckIsInOutAnimationActive();
         }
 
         public void Update()
         {
+            CheckIsInOutAnimationActive();
 #if DEBUG
             if (Input.GetKeyDown(_toggleKey))
             {
@@ -1683,24 +1687,14 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
             }
 
             // BodyShapeKeyCheck
-            if (IsInOutMorpherEnabled())
-            {
-                LogWarning("InOutAnimation is detected and morpher is enabled. AutoKUPA disabled");
-                bKupaAvailable = false;
-                bAnalKupaAvailable = false;
-            }
-            else
-            {
-                bKupaAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("kupa");
-                bOrgasmAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("orgasm");
-                bAnalKupaAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("analkupa");
-                bLabiaKupaAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("labiakupa");
-                bVaginaKupaAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("vaginakupa");
-                bNyodoKupaAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("nyodokupa");
-                bSujiAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("suji");
-                bClitorisAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("clitoris");
-
-            }
+            bKupaAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("kupa");
+            bOrgasmAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("orgasm");
+            bAnalKupaAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("analkupa");
+            bLabiaKupaAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("labiakupa");
+            bVaginaKupaAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("vaginakupa");
+            bNyodoKupaAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("nyodokupa");
+            bSujiAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("suji");
+            bClitorisAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("clitoris");
 
             // BokkiChikubi ShapeKeyCheck
             bBokkiChikubiAvailable = this.isExistVertexMorph(maid.body0, "chikubi_bokki");
@@ -2738,7 +2732,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
                 }
             }
 
-            if (panel["AutoKUPA"].Enabled)
+            if (panel["AutoKUPA"].Enabled && !isInOutAnimationActive)
             {
                 bool updated = false;
                 string[] names = {
@@ -2937,7 +2931,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
         {
             try
             {
-                maid.body0.VertexMorph_FromProcItem("kupa", value / 100f);
+                if (!isInOutAnimationActive) maid.body0.VertexMorph_FromProcItem("kupa", value / 100f);
             }
             catch { /*LogError(ex);*/ }
 
@@ -2948,7 +2942,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
         {
             try
             {
-                maid.body0.VertexMorph_FromProcItem("analkupa", value / 100f);
+                if (!isInOutAnimationActive) maid.body0.VertexMorph_FromProcItem("analkupa", value / 100f);
             }
             catch { /*LogError(ex);*/ }
 
@@ -2964,7 +2958,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
         {
             try
             {
-                maid.body0.VertexMorph_FromProcItem("labiakupa", value / 100f);
+                if (!isInOutAnimationActive) maid.body0.VertexMorph_FromProcItem("labiakupa", value / 100f);
             }
             catch { /*LogError(ex);*/ }
 
@@ -2975,7 +2969,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
         {
             try
             {
-                maid.body0.VertexMorph_FromProcItem("vaginakupa", value / 100f);
+                if (!isInOutAnimationActive) maid.body0.VertexMorph_FromProcItem("vaginakupa", value / 100f);
             }
             catch { /*LogError(ex);*/ }
 
@@ -2986,7 +2980,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
         {
             try
             {
-                maid.body0.VertexMorph_FromProcItem("nyodokupa", value / 100f);
+                if (!isInOutAnimationActive) maid.body0.VertexMorph_FromProcItem("nyodokupa", value / 100f);
             }
             catch { /*LogError(ex);*/ }
 
@@ -2997,7 +2991,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
         {
             try
             {
-                maid.body0.VertexMorph_FromProcItem("suji", value / 100f);
+                if (!isInOutAnimationActive) maid.body0.VertexMorph_FromProcItem("suji", value / 100f);
             }
             catch { /*LogError(ex);*/ }
 
@@ -3008,7 +3002,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
         {
             try
             {
-                maid.body0.VertexMorph_FromProcItem("clitoris", value / 100f);
+                if (!isInOutAnimationActive) maid.body0.VertexMorph_FromProcItem("clitoris", value / 100f);
             }
             catch { /*LogError(ex);*/ }
 
@@ -3461,6 +3455,8 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
 
         #region Compatibility methods
 
+        internal new ManualLogSource Logger => base.Logger;
+
         private void OldConfigCheck()
         {
             var oldConfigPath = Path.Combine(Paths.GameRootPath, "Sybaris\\UnityInjector\\Config\\AddYotogiSliderSE.ini");
@@ -3491,50 +3487,21 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
             get => transitionalConfigFile ?? base.Config;
         }
 
-        private bool IsInOutMorpherEnabled()
+        private void CheckIsInOutAnimationActive()
         {
-            Type IOSettingsClass;
-            try
+            var enabled = InOutAnimationHook.IsPluginEnabled && InOutAnimationHook.IsMorpherEnabled;
+            if (isInOutAnimationActive != enabled)
             {
-                IOSettingsClass = AccessTools.TypeByName("COM3D2.InOutAnimation.Plugin.InOutAnimation+Settings");
+                isInOutAnimationActive = enabled;
+                if (enabled)
+                {
+                    LogWarning("InOutAnimation morpher is enabled. AutoKUPA will be disabled and KUPA sliders will have no effect.");
+                }
+                else
+                {
+                    LogWarning("InOutAnimation morpher disabled.");
+                }
             }
-            catch (Exception e)
-            {
-                Logger.LogDebug(e);
-                return false;
-            }
-
-            if(IOSettingsClass is null)
-            {
-                return false;
-            }
-
-            var instanceProp = AccessTools.Property(IOSettingsClass, "Instance");
-            if(instanceProp is null)
-            {
-                throw new Exception($"Cannot get Instance property of {IOSettingsClass}");
-            }
-
-            var enablePluginField = AccessTools.Field(IOSettingsClass, "enablePlugin");
-            if(enablePluginField is null)
-            {
-                throw new Exception($"Cannot get enablePlugin field of {IOSettingsClass}");
-            }
-
-            
-            var enableMorpherField = AccessTools.Field(IOSettingsClass, "enableMorpher");
-            if (enableMorpherField is null)
-            {
-                throw new Exception($"Cannot get enableMorpher field of {IOSettingsClass}");
-            }
-
-            var ioSettings = instanceProp.GetValue(null, null);
-            var enablePlugin = (bool)enablePluginField.GetValue(ioSettings);
-            var enableMorpher = (bool)enableMorpherField.GetValue(ioSettings);
-
-            Logger.LogDebug($"InOutAnimation plugin detected. morpherEnabled is: {enableMorpher}");
-
-            return enablePlugin && enableMorpher;
         }
 
 #endregion
