@@ -19,7 +19,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
 {
     public static class VERSION
     {
-        public const string NUMBER = "1.0.0.4";
+        public const string NUMBER = "1.0.0.5";
 
 #if DEBUG
         public const string RELEASE_TYPE = "debug";
@@ -1234,7 +1234,11 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
 
         public void Update()
         {
+            // We only want to check inout once per frame
+            // so we check it here and set cached value since the original check
+            // uses reflection and may be expensive
             CheckIsInOutAnimationActive();
+
 #if DEBUG
             if (Input.GetKeyDown(_toggleKey))
             {
