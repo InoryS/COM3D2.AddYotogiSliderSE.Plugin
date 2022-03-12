@@ -15,6 +15,8 @@ using UnityObsoleteGui;
 using PV = UnityObsoleteGui.PixelValuesCM3D2;
 using Yotogis;
 
+using COM3D2.AddYotogiSliderSE.Plugin.Extensions;
+
 namespace COM3D2.AddYotogiSliderSE.Plugin
 {
     public static class VERSION
@@ -27,12 +29,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
         public const string RELEASE_TYPE = "release";
 #endif
 
-#if COM3D25
-        public const string VARIAN = "cr";
-#else
         public const string VARIAN = "standard";
-#endif
-
     }
 
 
@@ -41,13 +38,9 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
     {
 #region Constants
 
-#if COM3D25
-        public const string Uuid = "COM3D2.AddYotogiSliderSE2";
-        public const string PluginName = "AddYotogiSliderSE2-cr";
-#else
         public const string Uuid = "COM3D2.AddYotogiSliderSE2";
         public const string PluginName = "AddYotogiSliderSE2";
-#endif
+
         public const string Version = VERSION.NUMBER;
 
         private readonly float TimePerUpdateSpeed = 0.33f;
@@ -1161,16 +1154,6 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
 
         public void Start()
         {
-#if COM3D25
-            if (!Product.isCREditSystemSupport) {
-                LogError("You are using a build of this plugin that is intended for COM3D2.5, but your game does not support it. Some functionalities of this plugin may fail.");
-            }
-#else
-            if (Product.isCREditSystemSupport)
-            {
-                LogError("You are using a build of this plugin that is intended for COM3D2, but your game seems to be the CR-Edit version (CO. Some functionalities of this plugin may fail.");
-            }
-#endif
             LogInfo("Plugin started");
         }
 
@@ -1691,14 +1674,14 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
             }
 
             // BodyShapeKeyCheck
-            bKupaAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("kupa");
-            bOrgasmAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("orgasm");
-            bAnalKupaAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("analkupa");
-            bLabiaKupaAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("labiakupa");
-            bVaginaKupaAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("vaginakupa");
-            bNyodoKupaAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("nyodokupa");
-            bSujiAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("suji");
-            bClitorisAvailable = maid.body0.goSlot[0].morph.hash.ContainsKey("clitoris");
+            bKupaAvailable = maid.body0.GetGoSlot(0).morph.hash.ContainsKey("kupa");
+            bOrgasmAvailable = maid.body0.GetGoSlot(0).morph.hash.ContainsKey("orgasm");
+            bAnalKupaAvailable = maid.body0.GetGoSlot(0).morph.hash.ContainsKey("analkupa");
+            bLabiaKupaAvailable = maid.body0.GetGoSlot(0).morph.hash.ContainsKey("labiakupa");
+            bVaginaKupaAvailable = maid.body0.GetGoSlot(0).morph.hash.ContainsKey("vaginakupa");
+            bNyodoKupaAvailable = maid.body0.GetGoSlot(0).morph.hash.ContainsKey("nyodokupa");
+            bSujiAvailable = maid.body0.GetGoSlot(0).morph.hash.ContainsKey("suji");
+            bClitorisAvailable = maid.body0.GetGoSlot(0).morph.hash.ContainsKey("clitoris");
 
             // BokkiChikubi ShapeKeyCheck
             bBokkiChikubiAvailable = this.isExistVertexMorph(maid.body0, "chikubi_bokki");
@@ -2238,9 +2221,10 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
         private bool VertexMorph_FromProcItem(TBody body, string sTag, float f)
         {
             bool bFace = false;
-            for (int i = 0; i < body.goSlot.Count; i++)
+            var i = 0;
+            foreach (var slot in body.EnumerateGoSlot())
             {
-                TMorph morph = body.goSlot[i].morph;
+                TMorph morph = slot.morph;
                 if (morph != null)
                 {
                     if (morph.Contains(sTag))
@@ -2249,11 +2233,13 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
                         {
                             bFace = true;
                         }
-                        int h = (int)body.goSlot[i].morph.hash[sTag];
-                        body.goSlot[i].morph.SetBlendValues(h, f);
-                        body.goSlot[i].morph.FixBlendValues();
+                        int h = (int)slot.morph.hash[sTag];
+                        slot.morph.SetBlendValues(h, f);
+                        slot.morph.FixBlendValues();
                     }
                 }
+
+                i++;
             }
             return bFace;
         }
@@ -2261,9 +2247,9 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
         private bool isExistVertexMorph(TBody body, string sTag)
         {
 
-            for (int i = 0; i < body.goSlot.Count; i++)
+            foreach (var slot in body.EnumerateGoSlot())
             {
-                TMorph morph = body.goSlot[i].morph;
+                TMorph morph = slot.morph;
                 if (morph != null)
                 {
                     if (morph.Contains(sTag))

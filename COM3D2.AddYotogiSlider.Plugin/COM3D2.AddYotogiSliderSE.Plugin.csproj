@@ -57,15 +57,19 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="COM3D2.AddYotogiSliderSE.Plugin.cs" />
+    <Compile Include="InOutAnimationHook.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="TBodyExtensions.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
-  <Import Project="..\COM3D2.AddYotogiSliderSE.Plugin.Shared\COM3D2.AddYotogiSliderSE.Plugin.Shared.projitems" Label="Shared" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>copy "$(TargetPath)" "F:\COM-3d2\BepinEx\plugins\"
+copy "$(TargetPath)" "F:\COM3D2JP\COM3D2_5\BepinEx\plugins"
+
 cd $(OutDir)
 mkdir BepinEx\Plugins\
 copy $(TargetPath) BepinEx\Plugins\
