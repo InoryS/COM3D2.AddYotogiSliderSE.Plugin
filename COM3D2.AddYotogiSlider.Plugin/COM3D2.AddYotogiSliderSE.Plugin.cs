@@ -34,6 +34,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
 
 
     [BepInPlugin(AddYotogiSliderSE.Uuid, AddYotogiSliderSE.PluginName, AddYotogiSliderSE.Version)]
+    [BepInDependency("org.bepinex.plugins.unityinjectorloader", BepInDependency.DependencyFlags.SoftDependency)]
     public class AddYotogiSliderSE : BaseUnityPlugin
     {
 #region Constants
