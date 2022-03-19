@@ -19,23 +19,43 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
 
         static bool isHooked = false;
 
+        static Harmony harmony;
 
-        static InOutAnimationHook()
+        static void InOutAnimation_Settings_Load(object __result)
         {
-            ReInitialize();
-        }
-
-        public static void InOutAnimation_Settings_Load(object __result)
-        {
-#if DEBUG
             Logger.LogDebug("InOutAnimation settings reloaded");
-#endif
             ioSettingsInstance = __result;
         }
 
-        public static void ReInitialize()
+        public static void Init()
         {
             if (isHooked) return;
+
+            harmony = new Harmony("COM3D2.AddYotogiSliderSE.Plugin.InOutAnimationHook");
+
+            var type = AccessTools.TypeByName("BepInEx.UnityInjectorLoader.UnityInjectorLoader");
+            if (type == null)
+            {
+                Logger.LogInfo("UnityInjectorLoader is not available");
+                return;
+            }
+
+            var finalizer = new HarmonyMethod(typeof(InOutAnimationHook), nameof(HookSettings));
+
+            var method = AccessTools.Method(type, "Init");
+            harmony.Patch(method,
+                finalizer: finalizer);
+
+            Logger.LogInfo("UnityInjector hook created, waiting for unityinjector load");
+
+            isHooked = true;
+        }
+
+
+        static void HookSettings()
+        {
+            Logger.LogInfo("UnityInjector Init complete, checking InOutAnimation settings");
+
             var settingsClass = AccessTools.TypeByName("COM3D2.InOutAnimation.Plugin.InOutAnimation+Settings");
             if (settingsClass is null) return;
 
@@ -44,7 +64,6 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
             var loadMethod = AccessTools.Method(settingsClass, "Load", new Type[] { });
             if (loadMethod is null) throw new Exception("Cannot get load method of settings class");
 
-            var harmony = new Harmony("COM3D2.AddYotogiSliderSE.Plugin.InOutAnimationHook");
 
             var hookMethod = AccessTools.Method(typeof(InOutAnimationHook), nameof(InOutAnimation_Settings_Load));
 

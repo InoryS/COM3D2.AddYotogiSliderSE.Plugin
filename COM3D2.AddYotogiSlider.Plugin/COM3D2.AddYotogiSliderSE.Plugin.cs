@@ -21,7 +21,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
 {
     public static class VERSION
     {
-        public const string NUMBER = "1.0.0.6";
+        public const string NUMBER = "1.0.0.7";
 
 #if DEBUG
         public const string RELEASE_TYPE = "debug";
@@ -1148,6 +1148,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
 
             var harmony = new Harmony(Uuid);
             harmony.PatchAll(typeof(AddYotogiSliderSE));
+            InOutAnimationHook.Init();
 
             OldConfigCheck();
         }
@@ -1211,7 +1212,6 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
             sceneLevel = level;
 
             SybarisCheck();
-            InOutAnimationHook.ReInitialize();
             CheckIsInOutAnimationActive();
         }
 
