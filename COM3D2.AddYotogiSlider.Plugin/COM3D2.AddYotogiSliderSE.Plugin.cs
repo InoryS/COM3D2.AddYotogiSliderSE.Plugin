@@ -21,7 +21,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
 {
     public static class VERSION
     {
-        public const string NUMBER = "1.0.0.7";
+        public const string NUMBER = "1.0.0.8";
 
 #if DEBUG
         public const string RELEASE_TYPE = "debug";
