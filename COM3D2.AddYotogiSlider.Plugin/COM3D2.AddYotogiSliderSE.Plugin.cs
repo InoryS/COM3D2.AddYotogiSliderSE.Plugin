@@ -21,7 +21,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
 {
     public static class VERSION
     {
-        public const string NUMBER = "1.0.0.8";
+        public const string NUMBER = "1.0.0.10";
 
 #if DEBUG
         public const string RELEASE_TYPE = "debug";
@@ -63,11 +63,12 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
             Vibe = 1,
         }
 
-#endregion
+        #endregion
 
-#region Variables
+        #region Variables
 
-        private string _toggleKey = "f5";
+        //private string _toggleKey = "f5";
+        private ConfigEntry<KeyboardShortcut> ToggleKey;
 
         private int sceneLevel;
         private bool visible = false;
@@ -1118,8 +1119,6 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
             {
                 DontDestroyOnLoad(this);
 
-                _toggleKey = parseExIni("General", "ToggleWindow", _toggleKey);
-
                 pa["WIN.Load"] = new PlayAnime("WIN.Load", 2, 0.00f, 0.25f, PlayAnime.Formula.Quadratic);
                 pa["AHE.継続.0"] = new PlayAnime("AHE.継続.0", 1, 0.00f, 0.75f);
                 pa["AHE.絶頂.0"] = new PlayAnime("AHE.絶頂.0", 2, 6.00f, 9.00f);
@@ -1152,6 +1151,8 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
             InOutAnimationHook.Init();
 
             OldConfigCheck();
+
+            ToggleKey = Config.Bind("General", "Toggle shortcut", new KeyboardShortcut(KeyCode.F5));
         }
 
         public void Start()
@@ -1251,7 +1252,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
                 {
                     if (canStart)
                     {
-                        if (Input.GetKeyDown(_toggleKey))
+                        if (ToggleKey.Value.IsDown())
                         {
                             winAnimeRect = window.Rectangle;
                             visible = !visible;
@@ -1844,8 +1845,6 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
             {
                 clearExIniComments(); // ReloadConfigでコメントが追加されるので先にクリア
                 ReloadConfig();
-
-                _toggleKey = parseExIni("General", "ToggleWindow", _toggleKey);
 
                 panel["Status"].Enabled = parseExIni("Status", "EnableOnLoad", false);
                 if (panel["Status"].Enabled)
@@ -3454,7 +3453,6 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
             if (File.Exists(oldConfigPath))
             {
                 Logger.LogWarning($"Detected old sybaris configuration at [{oldConfigPath}]. Make sure to migrate your configuration to the new configuration path. See plugin README.md for details.");
-                this.transitionalConfigFile = new ConfigFile(oldConfigPath, false);
             }
         }
 
@@ -3469,13 +3467,6 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
                 Logger.LogWarning($"Detected old sybaris plugin at [{assemblyLocation}]. Disabling this plugin but you are advised to uninstall this properly. See plugin README.md for details.");
                 GameObject.Destroy(component);
             }
-        }
-
-        private ConfigFile transitionalConfigFile;
-
-        new ConfigFile Config
-        {
-            get => transitionalConfigFile ?? base.Config;
         }
 
         private void CheckIsInOutAnimationActive()

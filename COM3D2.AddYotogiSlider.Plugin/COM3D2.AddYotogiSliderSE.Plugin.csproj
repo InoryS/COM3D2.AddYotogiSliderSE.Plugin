@@ -35,25 +35,17 @@
       <Private>False</Private>
     </Reference>
     <Reference Include="Assembly-CSharp, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\COM3D2.GameLibs.2.13.0-r.0\lib\net35\Assembly-CSharp.dll</HintPath>
-      <Private>False</Private>
+      <HintPath>..\packages\COM3D2.GameLibs.2.15.1-r.0\lib\net35\Assembly-CSharp.dll</HintPath>
     </Reference>
     <Reference Include="Assembly-CSharp-firstpass, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\COM3D2.GameLibs.2.13.0-r.0\lib\net35\Assembly-CSharp-firstpass.dll</HintPath>
-      <Private>False</Private>
+      <HintPath>..\packages\COM3D2.GameLibs.2.15.1-r.0\lib\net35\Assembly-CSharp-firstpass.dll</HintPath>
     </Reference>
-    <Reference Include="BepInEx, Version=5.4.17.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\BepInEx.BaseLib.5.4.17\lib\net35\BepInEx.dll</HintPath>
-      <Private>False</Private>
+    <Reference Include="BepInEx, Version=5.4.19.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\BepInEx.BaseLib.5.4.19\lib\net35\BepInEx.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="UnityEngine, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\UnityEngine.Modules.5.6.1\lib\net35\UnityEngine.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="UnityEngine.UI, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\COM3D2.GameLibs.2.13.0-r.0\lib\net35\UnityEngine.UI.dll</HintPath>
-      <Private>False</Private>
+      <HintPath>..\packages\UnityEngine.Modules.5.6.4\lib\net35\UnityEngine.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
