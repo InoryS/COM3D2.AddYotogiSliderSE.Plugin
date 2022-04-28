@@ -21,7 +21,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
 {
     public static class VERSION
     {
-        public const string NUMBER = "1.0.0.9";
+        public const string NUMBER = "1.0.0.10";
 
 #if DEBUG
         public const string RELEASE_TYPE = "debug";
@@ -1700,8 +1700,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
                 string sStagePrefab = "";
                 if (bNormalYotogiScene)
                 {
-                    int i = (YotogiStageSelectManager.SelectedStageRefDayTime) ? 0 : 1;
-                    sStagePrefab = YotogiStageSelectManager.SelectedStage.prefabName[i];
+                    sStagePrefab = YotogiStageSelectManagerCompat.GetCurrentStagePrefab();
                 }
                 else if (bCompatibilityYotogiScene)
                 {
