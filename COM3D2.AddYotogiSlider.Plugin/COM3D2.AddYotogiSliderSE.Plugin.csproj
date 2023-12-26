@@ -30,22 +30,22 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="0Harmony, Version=2.9.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\HarmonyX.2.9.0\lib\net35\0Harmony.dll</HintPath>
+    <Reference Include="0Harmony">
+      <HintPath>\home\runner\work\COM3D2.AddYotogiSliderSE.Plugin\COM3D2.AddYotogiSliderSE.Plugin\Libs\0Harmony.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="Assembly-CSharp, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\COM3D2.GameLibs.2.15.1-r.0\lib\net35\Assembly-CSharp.dll</HintPath>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>\home\runner\work\COM3D2.AddYotogiSliderSE.Plugin\COM3D2.AddYotogiSliderSE.Plugin\Libs\Assembly-CSharp.dll</HintPath>
     </Reference>
-    <Reference Include="Assembly-CSharp-firstpass, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\COM3D2.GameLibs.2.15.1-r.0\lib\net35\Assembly-CSharp-firstpass.dll</HintPath>
+    <Reference Include="Assembly-CSharp-firstpass">
+      <HintPath>\home\runner\work\COM3D2.AddYotogiSliderSE.Plugin\COM3D2.AddYotogiSliderSE.Plugin\Libs\Assembly-CSharp-firstpass.dll</HintPath>
     </Reference>
-    <Reference Include="BepInEx, Version=5.4.19.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\BepInEx.BaseLib.5.4.19\lib\net35\BepInEx.dll</HintPath>
+    <Reference Include="BepInEx">
+      <HintPath>\home\runner\work\COM3D2.AddYotogiSliderSE.Plugin\COM3D2.AddYotogiSliderSE.Plugin\Libs\BepInEx.dll</HintPath>
     </Reference>
     <Reference Include="System" />
-    <Reference Include="UnityEngine, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\UnityEngine.Modules.5.6.4\lib\net35\UnityEngine.dll</HintPath>
+    <Reference Include="UnityEngine">
+      <HintPath>\home\runner\work\COM3D2.AddYotogiSliderSE.Plugin\COM3D2.AddYotogiSliderSE.Plugin\Libs\UnityEngine.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
