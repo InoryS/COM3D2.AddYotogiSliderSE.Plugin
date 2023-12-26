@@ -74,6 +74,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
         private bool visible = false;
         private bool bNormalYotogiScene = false;
         private bool bCompatibilityYotogiScene = false;
+        private bool bCLBYotogiScene = false;
         private bool bInitCompleted = false;
         private bool bLoadBoneAnimetion = false;
         private bool bSyncMotionSpeed = false;
@@ -1200,6 +1201,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
 
 
         //Overwrite for Level that is loaded.
+        //Level 10 is for Yotogi in CBL Mode
         //Level 14 is for Yotogi in Normal Mode
         //Level 63 is for Yotogi in Compatibility Mode
         public void OnLevelWasLoaded(int level)
@@ -1208,6 +1210,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
 
             LogInfo("Current Level Loaded is " + level.ToString());
 
+            bCLBYotogiScene = (level == 10);
             bNormalYotogiScene = (level == 14);
             bCompatibilityYotogiScene = (level == 63);
 
@@ -1248,7 +1251,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
 
             if (bInitCompleted)
             {
-                if (bNormalYotogiScene || bCompatibilityYotogiScene)
+                if (bNormalYotogiScene || bCompatibilityYotogiScene || bCLBYotogiScene)
                 {
                     if (canStart)
                     {
@@ -1275,7 +1278,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
         //Initialising GUI
         public void OnGUI()
         {
-            if ((bNormalYotogiScene || bCompatibilityYotogiScene) && canStart)
+            if ((bNormalYotogiScene || bCompatibilityYotogiScene || bCLBYotogiScene) && canStart)
             {
                 updateAnimeOnGUI();
 
@@ -1557,7 +1560,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
             if (IsNull(this.maidFoceKuchipakuSelfUpdateTime)) return false;
 
             if (this.yotogiParamBasicBarDelegator == null) this.yotogiParamBasicBarDelegator = new YorogiParamBasicBarDelegator();
-            if (bNormalYotogiScene)
+            if (bNormalYotogiScene || bCLBYotogiScene)
             {
                 this.yotogiParamBasicBarDelegator.SetParamBasicBar(getInstance<YotogiParamBasicBar>());
             }
@@ -1569,7 +1572,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
 
             // 夜伽コマンドフック Loading Kiss Object Instance so we can access them
             {
-                if (bNormalYotogiScene)
+                if (bNormalYotogiScene || bCLBYotogiScene)
                 {
                     this.yotogiPlayManager = getInstance<YotogiPlayManager>();
                     if (!this.yotogiPlayManager) return false;
@@ -1698,7 +1701,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
                 float sensual = (float)maid.status.currentSensual;
 
                 string sStagePrefab = "";
-                if (bNormalYotogiScene)
+                if (bNormalYotogiScene || bCLBYotogiScene)
                 {
                     sStagePrefab = YotogiStageSelectManagerCompat.GetCurrentStagePrefab();
                 }
@@ -1710,7 +1713,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
 
                 slider["Excite"] = new YotogiSlider("Slider:Excite", -100f, 300f, excite, this.OnChangeSliderExcite, sliderName[0], true);
                 slider["Mind"] = new YotogiSlider("Slider:Mind", 0f, mind, mind, this.OnChangeSliderMind, sliderName[1], true);
-                if (bNormalYotogiScene)
+                if (bNormalYotogiScene || bCLBYotogiScene)
                 {
                     slider["Sensual"] = new YotogiSlider("Slider:Sensual", 0f, 300f, sensual, this.OnChangeSliderSensual, sliderName[2], true);
                 }
@@ -1780,7 +1783,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
                 panel["Status"] = window.AddChild<YotogiPanel>(new YotogiPanel("Panel:Status", "Status", YotogiPanel.HeaderUI.Slider));
                 panel["Status"].AddChild(slider["Excite"]);
                 panel["Status"].AddChild(slider["Mind"]);
-                if (bNormalYotogiScene)
+                if (bNormalYotogiScene || bCLBYotogiScene)
                 {
                     panel["Status"].AddChild(slider["Sensual"]);
                 }
@@ -1851,7 +1854,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
                     slider["Excite"].Value = Math.Max(Math.Min(parseExIni("Status", "ExciteValue", 0f), 300f), -100f);
                     slider["Excite"].Pin = parseExIni("Status", "ExcitePin", false);
                     slider["Mind"].Pin = parseExIni("Status", "MindPin", false);
-                    if (bNormalYotogiScene)
+                    if (bNormalYotogiScene || bCLBYotogiScene)
                     {
                         if (slider["Sensual"].Value < 300f)
                         {
@@ -1967,7 +1970,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
         {
             try
             {
-                if (bNormalYotogiScene)
+                if (bNormalYotogiScene || bCLBYotogiScene)
                 {
                     Yotogi.SkillDataPair sdp = getFieldValue<YotogiPlayManager, Yotogi.SkillDataPair>(this.yotogiPlayManager, "skill_pair_");
                     return sdp.base_data.name;
@@ -2088,7 +2091,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
                 slider["Mind"].Value = (float)maid.status.currentMind;
             }
 
-            if (bNormalYotogiScene)
+            if (bNormalYotogiScene || bCLBYotogiScene)
             {
                 // 官能は「発情させる」を使用するとスキル変更後0になる
                 if (panel["Status"].Enabled && slider["Sensual"].Pin)
@@ -2185,7 +2188,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
                 lastSkillName = null;
                 yotogiParamBasicBarDelegator = null;
 
-                if (kagScriptCallbacksOverride && (bNormalYotogiScene || bCompatibilityYotogiScene))
+                if (kagScriptCallbacksOverride && (bNormalYotogiScene || bCompatibilityYotogiScene || bCLBYotogiScene))
                 {
                     kagScript.RemoveTagCallBack("face");
                     kagScript.AddTagCallBack("face", new KagScript.KagTagCallBack(this.orgTagFace));
@@ -2287,7 +2290,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
             if (panel["Status"].Enabled && slider["Mind"].Pin) updateMaidMind((int)slider["Mind"].Value);
             else slider["Mind"].Value = (float)maid.status.currentMind;
 
-            if (bNormalYotogiScene)
+            if (bNormalYotogiScene || bCLBYotogiScene)
             {
                 if (panel["Status"].Enabled && slider["Sensual"].Pin) updateMaidSensual((int)slider["Sensual"].Value);
                 else slider["Sensual"].Value = (float)maid.status.currentSensual;
@@ -2457,7 +2460,7 @@ namespace COM3D2.AddYotogiSliderSE.Plugin
                     }
                     else
                     {
-                        if (bNormalYotogiScene)
+                        if (bNormalYotogiScene || bCLBYotogiScene)
                         {
                             pa["AHE.継続.0"].Play(fAheLastEye, fAheDefEye);
                         }
