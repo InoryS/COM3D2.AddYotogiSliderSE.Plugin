@@ -29,5 +29,5 @@ jobs:
       - name: Publish Artifact
         uses: actions/upload-artifact@v2
         with:
-          name: COM3D2.AddYotogiSliderSE.Plugin
-          path: COM3D2.AddYotogiSliderSE.Plugin/bin/Release/COM3D2.AddYotogiSliderSE.Plugin
+          name: COM3D2.AddYotogiSliderSE2.Plugin.dll
+          path: /home/runner/work/COM3D2.AddYotogiSliderSE.Plugin/COM3D2.AddYotogiSliderSE.Plugin/COM3D2.AddYotogiSlider.Plugin/bin/Release
